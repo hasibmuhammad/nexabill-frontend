@@ -5,11 +5,20 @@ import { ColumnDef, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDebounce } from "@/hooks/use-debounce";
 import { api, getRealTimeConnectionStatus } from "@/lib/api";
+import { getPppoeProfiles, ServiceProfile } from "@/lib/packages";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Plus, RefreshCw, Wifi } from "lucide-react";
+import {
+  ArrowRight,
+  Download,
+  Package,
+  Plus,
+  RefreshCw,
+  Wifi,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useClientColumns } from "./components/ClientColumns";
@@ -101,6 +110,7 @@ export default function ClientsPage() {
     mikrotikUsername: "",
     serviceProfile: "",
     monthlyFee: "",
+    selectedPackageId: "",
   });
   const queryClient = useQueryClient();
 
@@ -112,6 +122,9 @@ export default function ClientsPage() {
     initialSortBy: "name",
     initialSortOrder: "asc",
   });
+
+  // Server filter state
+  const [selectedServer, setSelectedServer] = useState("");
 
   // Use the debounce hook for search
   const debouncedSearch = useDebounce({ value: dataTable.search, delay: 500 });
@@ -146,6 +159,7 @@ export default function ClientsPage() {
       dataTable.sortBy,
       dataTable.sortOrder,
       debouncedSearch,
+      selectedServer,
     ],
     queryFn: async () => {
       const response = await api.get("/clients", {
@@ -155,6 +169,7 @@ export default function ClientsPage() {
           sortBy: dataTable.sortBy,
           sortOrder: dataTable.sortOrder,
           search: debouncedSearch,
+          mikrotikServerId: selectedServer || undefined,
         },
       });
 
@@ -199,6 +214,13 @@ export default function ClientsPage() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
+  // Fetch packages for client creation
+  const { data: packages } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: getPppoeProfiles,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
   // Auto-refresh every 30 seconds for clients, every 2 minutes for real-time status
   useEffect(() => {
     const clientInterval = setInterval(() => {
@@ -219,10 +241,10 @@ export default function ClientsPage() {
     };
   }, [isLoading, clients, refetch, realTimeLoading, refetchRealTime]);
 
-  // Reset page index when search changes
+  // Reset page index when search or server filter changes
   useEffect(() => {
     dataTable.setPageIndex(0);
-  }, [dataTable.search, dataTable.setPageIndex]);
+  }, [dataTable.search, dataTable.setPageIndex, selectedServer]);
 
   // Helper function to check if search is being processed
   const isSearching =
@@ -247,6 +269,19 @@ export default function ClientsPage() {
     [realTimeStatus?.individualSessions]
   );
 
+  // Helper function to get client session data
+  const getClientSession = useCallback(
+    (client: ISPClient) => {
+      if (!realTimeStatus?.individualSessions) return null;
+      return (
+        realTimeStatus.individualSessions.find(
+          (session: any) => session.name === client.mikrotikUsername
+        ) || null
+      );
+    },
+    [realTimeStatus?.individualSessions]
+  );
+
   // Define table columns
   const columns: ColumnDef<ISPClient, any>[] = useClientColumns({
     onEdit: (client: ISPClient) => {
@@ -254,6 +289,7 @@ export default function ClientsPage() {
       console.log("Edit client:", client);
     },
     isClientOnline,
+    getClientSession,
   });
 
   // Handle add client
@@ -270,6 +306,7 @@ export default function ClientsPage() {
         mikrotikUsername: "",
         serviceProfile: "",
         monthlyFee: "",
+        selectedPackageId: "",
       });
       // Refresh the client list
       refetch();
@@ -473,6 +510,8 @@ export default function ClientsPage() {
                   document.body.removeChild(link);
                 }}
                 isLoading={isLoading}
+                selectedServer={selectedServer}
+                onServerChange={setSelectedServer}
               />
             </div>
 
@@ -601,10 +640,57 @@ export default function ClientsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Service Profile
+                  Package Selection
+                </label>
+                <Select
+                  options={[
+                    { value: "", label: "Select a package..." },
+                    ...(packages || []).map((pkg: ServiceProfile) => ({
+                      value: pkg.id,
+                      label: `${pkg.name} (${pkg.mikrotikProfile}) - ৳${Number(
+                        pkg.monthlyPrice
+                      ).toFixed(2)}`,
+                    })),
+                    { value: "custom", label: "Custom Package" },
+                  ]}
+                  value={newClient.selectedPackageId}
+                  onChange={(value) => {
+                    if (value === "custom") {
+                      setNewClient({
+                        ...newClient,
+                        selectedPackageId: "custom",
+                        serviceProfile: "",
+                        monthlyFee: "",
+                      });
+                    } else if (value) {
+                      const selectedPackage = packages?.find(
+                        (pkg: any) => pkg.id === value
+                      );
+                      if (selectedPackage) {
+                        setNewClient({
+                          ...newClient,
+                          selectedPackageId: value,
+                          serviceProfile: selectedPackage.mikrotikProfile,
+                          monthlyFee: selectedPackage.monthlyPrice,
+                        });
+                      }
+                    } else {
+                      setNewClient({
+                        ...newClient,
+                        selectedPackageId: "",
+                        serviceProfile: "",
+                        monthlyFee: "",
+                      });
+                    }
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Mikrotik Profile
                 </label>
                 <Input
-                  placeholder="Basic Plan"
+                  placeholder="e.g., 5mb, 10mb"
                   value={newClient.serviceProfile}
                   onChange={(e) =>
                     setNewClient({
@@ -612,21 +698,78 @@ export default function ClientsPage() {
                       serviceProfile: e.target.value,
                     })
                   }
+                  disabled={
+                    !!(
+                      newClient.selectedPackageId &&
+                      newClient.selectedPackageId !== "custom"
+                    )
+                  }
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Monthly Fee
+                  Monthly Fee (৳)
                 </label>
                 <Input
+                  type="number"
                   placeholder="29.99"
                   value={newClient.monthlyFee}
                   onChange={(e) =>
                     setNewClient({ ...newClient, monthlyFee: e.target.value })
                   }
+                  disabled={
+                    !!(
+                      newClient.selectedPackageId &&
+                      newClient.selectedPackageId !== "custom"
+                    )
+                  }
                 />
               </div>
             </div>
+
+            {/* Package Selection Summary */}
+            {newClient.selectedPackageId &&
+              newClient.selectedPackageId !== "custom" && (
+                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <Package className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-blue-900 dark:text-blue-100">
+                          Selected Package:
+                        </span>
+                        <span className="font-semibold text-blue-800 dark:text-blue-200">
+                          {
+                            packages?.find(
+                              (pkg: any) =>
+                                pkg.id === newClient.selectedPackageId
+                            )?.name
+                          }
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-4 mt-1 text-sm text-blue-700 dark:text-blue-300">
+                        <span>
+                          Profile:{" "}
+                          <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
+                            {newClient.serviceProfile}
+                          </code>
+                        </span>
+                        <span>
+                          Price:{" "}
+                          <strong>
+                            ৳{Number(newClient.monthlyFee).toFixed(2)}
+                          </strong>
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              )}
           </div>
         </Modal>
       </div>

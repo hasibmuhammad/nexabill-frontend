@@ -87,3 +87,14 @@ export const getRealTimeConnectionStatus = async () => {
   // The API returns data nested under response.data.data
   return response.data.data || response.data;
 };
+
+// Get all Mikrotik servers for filter dropdown
+export const getMikrotikServers = async () => {
+  const response = await api.get("/mikrotik", {
+    params: {
+      page: 1,
+      limit: 100, // Get all servers for filter dropdown
+    },
+  });
+  return response.data?.data || [];
+};

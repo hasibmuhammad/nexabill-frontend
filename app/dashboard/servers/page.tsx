@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Modal from "@/components/ui/modal";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   addMikrotikServer,
   checkServerStatus,
+  getMikrotikServers,
   getMikrotikServersWithStatus,
   importUsersFromMikrotik,
   syncClientsWithMikrotik,
@@ -21,8 +23,6 @@ import {
   AlertCircle,
   CheckCircle,
   Download,
-  Eye,
-  EyeOff,
   Plus,
   RefreshCw,
   Server,
@@ -40,7 +40,6 @@ export default function ServersPage() {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [refreshingStatus, setRefreshingStatus] = useState<string | null>(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -64,7 +63,6 @@ export default function ServersPage() {
     setShowEditForm(false);
     setIsTestingConnection(false);
     setSelectedServer(null);
-    setShowPassword(false);
     // Reset form if needed
     const form = document.querySelector("form") as HTMLFormElement;
     if (form) {
@@ -75,24 +73,43 @@ export default function ServersPage() {
     editServerMutation.reset();
   };
 
-  // Fetch servers with real-time connection status
+  // First check if there are any servers at all
+  const {
+    data: serversList,
+    isLoading: serversLoading,
+    error: serversError,
+  } = useQuery({
+    queryKey: ["mikrotik-servers-list"],
+    queryFn: getMikrotikServers,
+    retry: 1,
+    retryDelay: 2000,
+  });
+
+  // Only fetch with status if there are servers
   const {
     data: servers,
-    isLoading,
-    error,
+    isLoading: statusLoading,
+    error: statusError,
   } = useQuery({
-    queryKey: ["mikrotik-servers"],
+    queryKey: ["mikrotik-servers-with-status"],
     queryFn: getMikrotikServersWithStatus,
-    retry: 1, // Only retry once to avoid long delays
-    retryDelay: 2000, // Wait 2 seconds before retry
+    enabled: !!serversList && serversList.length > 0, // Only run if servers exist
+    retry: 1,
+    retryDelay: 2000,
   });
+
+  // Use servers with status if available, otherwise use basic servers list
+  const finalServers = servers || serversList || [];
+  const isLoading =
+    serversLoading || (serversList && serversList.length > 0 && statusLoading);
+  const error = serversError || statusError;
 
   // Ensure servers is always an array, even if API returns error or unexpected data
   // Handle both direct array and paginated response structure
-  const serversArray: MikrotikServer[] = Array.isArray(servers)
-    ? servers
-    : servers && Array.isArray(servers)
-    ? servers
+  const serversArray: MikrotikServer[] = Array.isArray(finalServers)
+    ? finalServers
+    : finalServers && Array.isArray(finalServers)
+    ? finalServers
     : [];
 
   // Show error if there's an API error
@@ -108,7 +125,10 @@ export default function ServersPage() {
   const addServerMutation = useMutation({
     mutationFn: addMikrotikServer,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers"] });
+      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["mikrotik-servers-with-status"],
+      });
       closeForm();
 
       // Show success message with import information
@@ -189,7 +209,10 @@ export default function ServersPage() {
       return updateMikrotikServer(id, updateData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers"] });
+      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["mikrotik-servers-with-status"],
+      });
       closeForm();
       toast.success("Mikrotik server updated successfully!");
     },
@@ -253,7 +276,10 @@ export default function ServersPage() {
   const testConnectionMutation = useMutation({
     mutationFn: testServerConnection,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers"] });
+      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["mikrotik-servers-with-status"],
+      });
       toast.success(
         `Connection test ${data.success ? "successful" : "failed"}: ${
           data.message
@@ -320,7 +346,10 @@ export default function ServersPage() {
   const importUsersMutation = useMutation({
     mutationFn: importUsersFromMikrotik,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers"] });
+      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["mikrotik-servers-with-status"],
+      });
       toast.success(
         `Imported ${data.successfulRecords || 0} users successfully!`
       );
@@ -339,7 +368,10 @@ export default function ServersPage() {
   const syncClientsMutation = useMutation({
     mutationFn: syncClientsWithMikrotik,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers"] });
+      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["mikrotik-servers-with-status"],
+      });
       toast.success(
         `Synced ${data.successfulRecords || 0} clients successfully!`
       );
@@ -359,7 +391,10 @@ export default function ServersPage() {
     mutationFn: checkServerStatus,
     onSuccess: (data) => {
       console.log("Check status response:", data); // Debug log
-      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers"] });
+      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["mikrotik-servers-with-status"],
+      });
 
       // Check the connectionStatus from the response
       if (data.connectionStatus === "CONNECTED") {
@@ -405,8 +440,9 @@ export default function ServersPage() {
         ? data.items
         : [];
 
-      // Update the query cache with the new data
-      queryClient.setQueryData(["mikrotik-servers"], serversData);
+      // Update both query caches with the new data
+      queryClient.setQueryData(["mikrotik-servers-with-status"], serversData);
+      queryClient.setQueryData(["mikrotik-servers-list"], serversData);
 
       const connectedCount = serversData.filter(
         (server: MikrotikServer) => server.connectionStatus === "CONNECTED"
@@ -763,12 +799,7 @@ export default function ServersPage() {
                 <label className="block text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Password
                 </label>
-                <Input
-                  name="password"
-                  type="password"
-                  required
-                  className="text-sm"
-                />
+                <PasswordInput name="password" required className="text-sm" />
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Mikrotik router password
                 </p>
@@ -961,26 +992,12 @@ export default function ServersPage() {
                   <label className="block text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Password
                   </label>
-                  <div className="relative">
-                    <Input
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      defaultValue={selectedServer.password || ""}
-                      placeholder="Enter new password to update"
-                      className="text-sm pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    name="password"
+                    defaultValue={selectedServer.password || ""}
+                    placeholder="Enter new password to update"
+                    className="text-sm"
+                  />
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Leave blank to keep current password
                   </p>

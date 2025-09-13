@@ -23,9 +23,20 @@ import {
   type UpdateServiceProfileInput,
 } from "@/lib/packages";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
+import {
+  BarChart3,
+  Download,
+  Edit,
+  Package,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
+import { PackageAnalytics } from "./components/PackageAnalytics";
+import { PackageAssignmentModal } from "./components/PackageAssignmentModal";
 import { PackageFilters } from "./components/PackageFilters";
 import { PackageSearch } from "./components/PackageSearch";
 
@@ -36,6 +47,13 @@ export default function PackagesPage() {
   const [editing, setEditing] = useState<ServiceProfile | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<ServiceProfile | null>(
+    null
+  );
+  const [activeTab, setActiveTab] = useState<"packages" | "analytics">(
+    "packages"
+  );
 
   // Use the debounce hook for search
   const debouncedSearch = useDebounce({ value: search, delay: 250 });
@@ -206,6 +224,18 @@ export default function PackagesPage() {
       enableSorting: false,
       cell: ({ original: p }) => (
         <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSelectedPackage(p);
+              setShowAssignmentModal(true);
+            }}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+            title="Assign clients to this package"
+          >
+            <Users className="h-3 w-3" />
+          </Button>
           <Button variant="outline" size="sm" onClick={() => startEdit(p)}>
             <Edit className="h-3 w-3" />
           </Button>
@@ -269,100 +299,160 @@ export default function PackagesPage() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search and Filters - Side by Side */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg mb-6 p-6">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            {/* Left Side - Filters */}
-            <div className="flex-1">
-              <PackageFilters
-                onRefresh={refetch}
-                onExport={() => {
-                  toast.success("Exporting package data...");
-                  // TODO: Implement actual export functionality
-                  const csvContent =
-                    "data:text/csv;charset=utf-8," +
-                    "Name,Mikrotik Profile,Speed,Price,Status\n" +
-                    "Sample Package,sample_profile,10/5 Mbps,৳500,Active";
-                  const encodedUri = encodeURI(csvContent);
-                  const link = document.createElement("a");
-                  link.setAttribute("href", encodedUri);
-                  link.setAttribute("download", "packages.csv");
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-                isLoading={isLoading}
-              />
-            </div>
-
-            {/* Right Side - Search */}
-            <div className="lg:ml-auto">
-              <PackageSearch searchValue={search} onSearchChange={setSearch} />
-            </div>
+        {/* Tab Navigation */}
+        <div className="mb-6">
+          <div className="border-b border-slate-200 dark:border-slate-700">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab("packages")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "packages"
+                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300"
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Package className="h-4 w-4" />
+                  <span>Packages</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab("analytics")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "analytics"
+                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300"
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Analytics</span>
+                </div>
+              </button>
+            </nav>
           </div>
         </div>
 
-        <DataTable
-          columns={columns}
-          data={paginatedData}
-          total={filtered.length}
-          pageIndex={currentPage - 1}
-          pageSize={entriesPerPage}
-          pageCount={totalPages}
-          onPageSizeChange={handleEntriesPerPageChange}
-          onPageChange={handlePageChange}
-          loading={isLoading}
-          emptyMessage="No packages found."
-        />
+        {/* Analytics View */}
+        {activeTab === "analytics" && <PackageAnalytics />}
 
-        <Modal
-          isOpen={showForm}
-          onClose={() => {
-            setShowForm(false);
-            setEditing(null);
-          }}
-          title={editing ? "Edit Package" : "New Package"}
-          size="xl"
-          footer={{
-            cancelText: "Cancel",
-            confirmText: editing ? "Update Package" : "Create Package",
-            onCancel: () => {
-              setShowForm(false);
-              setEditing(null);
-            },
-            onConfirm: () => {
-              const form = document.querySelector(
-                "#package-form"
-              ) as HTMLFormElement;
-              if (form) {
-                form.requestSubmit();
-              }
-            },
-            confirmVariant: "primary",
-            isLoading: createMut.isPending || updateMut.isPending,
-            disabled: createMut.isPending || updateMut.isPending,
-          }}
-        >
-          <ProfileForm
-            initial={editing || undefined}
-            onCancel={() => {
-              setShowForm(false);
-              setEditing(null);
-            }}
-            onSubmit={(values) => {
-              if (editing) {
-                updateMut.mutate({ id: editing.id, data: values });
-              } else {
-                createMut.mutate({
-                  ...values,
-                });
-              }
-              setShowForm(false);
-              setEditing(null);
-            }}
-            submitting={createMut.isPending || updateMut.isPending}
-          />
-        </Modal>
+        {/* Packages View */}
+        {activeTab === "packages" && (
+          <>
+            {/* Search and Filters - Side by Side */}
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg mb-6 p-6">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                {/* Left Side - Filters */}
+                <div className="flex-1">
+                  <PackageFilters
+                    onRefresh={refetch}
+                    onExport={() => {
+                      toast.success("Exporting package data...");
+                      // TODO: Implement actual export functionality
+                      const csvContent =
+                        "data:text/csv;charset=utf-8," +
+                        "Name,Mikrotik Profile,Speed,Price,Status\n" +
+                        "Sample Package,sample_profile,10/5 Mbps,৳500,Active";
+                      const encodedUri = encodeURI(csvContent);
+                      const link = document.createElement("a");
+                      link.setAttribute("href", encodedUri);
+                      link.setAttribute("download", "packages.csv");
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    isLoading={isLoading}
+                  />
+                </div>
+
+                {/* Right Side - Search */}
+                <div className="lg:ml-auto">
+                  <PackageSearch
+                    searchValue={search}
+                    onSearchChange={setSearch}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DataTable
+              columns={columns}
+              data={paginatedData}
+              total={filtered.length}
+              pageIndex={currentPage - 1}
+              pageSize={entriesPerPage}
+              pageCount={totalPages}
+              onPageSizeChange={handleEntriesPerPageChange}
+              onPageChange={handlePageChange}
+              loading={isLoading}
+              emptyMessage="No packages found."
+            />
+
+            <Modal
+              isOpen={showForm}
+              onClose={() => {
+                setShowForm(false);
+                setEditing(null);
+              }}
+              title={editing ? "Edit Package" : "New Package"}
+              size="xl"
+              footer={{
+                cancelText: "Cancel",
+                confirmText: editing ? "Update Package" : "Create Package",
+                onCancel: () => {
+                  setShowForm(false);
+                  setEditing(null);
+                },
+                onConfirm: () => {
+                  const form = document.querySelector(
+                    "#package-form"
+                  ) as HTMLFormElement;
+                  if (form) {
+                    form.requestSubmit();
+                  }
+                },
+                confirmVariant: "primary",
+                isLoading: createMut.isPending || updateMut.isPending,
+                disabled: createMut.isPending || updateMut.isPending,
+              }}
+            >
+              <ProfileForm
+                initial={editing || undefined}
+                onCancel={() => {
+                  setShowForm(false);
+                  setEditing(null);
+                }}
+                onSubmit={(values) => {
+                  if (editing) {
+                    updateMut.mutate({ id: editing.id, data: values });
+                  } else {
+                    createMut.mutate({
+                      ...values,
+                    });
+                  }
+                  setShowForm(false);
+                  setEditing(null);
+                }}
+                submitting={createMut.isPending || updateMut.isPending}
+              />
+            </Modal>
+
+            {/* Package Assignment Modal */}
+            <PackageAssignmentModal
+              isOpen={showAssignmentModal}
+              onClose={() => {
+                setShowAssignmentModal(false);
+                setSelectedPackage(null);
+              }}
+              packageProfile={selectedPackage}
+              onSuccess={() => {
+                setShowAssignmentModal(false);
+                setSelectedPackage(null);
+                refetch(); // Refresh packages list
+              }}
+            />
+          </>
+        )}
       </div>
     </div>
   );

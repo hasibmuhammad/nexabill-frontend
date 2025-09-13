@@ -19,7 +19,7 @@ import {
   updateConnectionType,
 } from "@/lib/api-connection-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
@@ -247,31 +247,6 @@ export default function ConnectionTypesPage() {
         title="Connection Types"
         subtitle="Manage network connection types"
         actions={[
-          {
-            label: "Refresh",
-            icon: RefreshCw,
-            onClick: () =>
-              queryClient.invalidateQueries({ queryKey: ["connectionTypes"] }),
-          },
-          {
-            label: "Export",
-            icon: Download,
-            onClick: () => {
-              toast.success("Exporting connection types data...");
-              // TODO: Implement actual export functionality
-              const csvContent =
-                "data:text/csv;charset=utf-8," +
-                "Name,Description,Status,Created\n" +
-                "Sample Connection Type,Sample description,Active,2024-01-01";
-              const encodedUri = encodeURI(csvContent);
-              const link = document.createElement("a");
-              link.setAttribute("href", encodedUri);
-              link.setAttribute("download", "connection-types.csv");
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            },
-          },
           {
             label: "New Connection Type",
             icon: Plus,

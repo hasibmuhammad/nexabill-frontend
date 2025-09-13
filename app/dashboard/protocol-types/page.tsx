@@ -19,7 +19,7 @@ import {
   updateProtocolType,
 } from "@/lib/api-protocol-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
@@ -249,31 +249,6 @@ export default function ProtocolTypesPage() {
         title="Protocol Types"
         subtitle="Manage network protocol types"
         actions={[
-          {
-            label: "Refresh",
-            icon: RefreshCw,
-            onClick: () =>
-              queryClient.invalidateQueries({ queryKey: ["protocolTypes"] }),
-          },
-          {
-            label: "Export",
-            icon: Download,
-            onClick: () => {
-              toast.success("Exporting protocol types data...");
-              // TODO: Implement actual export functionality
-              const csvContent =
-                "data:text/csv;charset=utf-8," +
-                "Name,Description,Status,Created\n" +
-                "Sample Protocol Type,Sample description,Active,2024-01-01";
-              const encodedUri = encodeURI(csvContent);
-              const link = document.createElement("a");
-              link.setAttribute("href", encodedUri);
-              link.setAttribute("download", "protocol-types.csv");
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            },
-          },
           {
             label: "New Protocol Type",
             icon: Plus,

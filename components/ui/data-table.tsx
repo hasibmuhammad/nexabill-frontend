@@ -52,6 +52,7 @@ export interface DataTableProps<TData, TValue> {
   total?: number; // Add total prop for accurate pagination info
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
+  disablePagination?: boolean; // Add prop to disable pagination
 
   // Sorting
   sortBy?: string;
@@ -106,6 +107,7 @@ export function DataTable<TData, TValue>({
   total,
   onPageChange,
   onPageSizeChange,
+  disablePagination = false,
 
   sortBy,
   sortOrder = "asc",
@@ -371,7 +373,7 @@ export function DataTable<TData, TValue>({
         <div className="bg-white dark:bg-slate-800 flex-1 flex flex-col overflow-hidden">
           <div className="w-full overflow-x-auto">
             <Table className="w-full">
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10">
                 <TableRow className="bg-white dark:bg-slate-800">
                   {enableRowSelection && (
                     <TableHead className="w-12 bg-white dark:bg-slate-800 px-3 py-4 text-center">
@@ -505,8 +507,8 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Sticky Pagination */}
-      {data.length > 0 && (
-        <div className="rounded-b-lg sticky bottom-0 z-10 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {data.length > 0 && !disablePagination && (
+        <div className="rounded-b-lg sticky bottom-0 z-30 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             {/* Page Size Selector */}
             <div className="flex items-center space-x-3">

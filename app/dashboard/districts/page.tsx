@@ -20,7 +20,7 @@ import {
   type UpdateDistrictDto,
 } from "@/lib/api-districts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
@@ -240,30 +240,6 @@ export default function DistrictsPage() {
         title="Districts"
         subtitle="Manage service districts"
         actions={[
-          {
-            label: "Refresh",
-            icon: RefreshCw,
-            onClick: () => refetch(),
-          },
-          {
-            label: "Export",
-            icon: Download,
-            onClick: () => {
-              toast.success("Exporting district data...");
-              // TODO: Implement actual export functionality
-              const csvContent =
-                "data:text/csv;charset=utf-8," +
-                "Name,Code,Description,Status,Created\n" +
-                "Sample District,DIST001,Sample district description,Active,2024-01-01";
-              const encodedUri = encodeURI(csvContent);
-              const link = document.createElement("a");
-              link.setAttribute("href", encodedUri);
-              link.setAttribute("download", "districts.csv");
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            },
-          },
           {
             label: "New District",
             icon: Plus,

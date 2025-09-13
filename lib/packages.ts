@@ -56,6 +56,58 @@ export const deleteServiceProfile = async (id: string): Promise<void> => {
 };
 
 /**
+ * Get clients that match a specific package's Mikrotik profile
+ */
+export const getMatchingClients = async (packageId: string) => {
+  const response = await api.get(`/profiles/${packageId}/matching-clients`);
+  return (
+    response.data?.data || {
+      package: null,
+      matchingClients: [],
+      assignedClients: [],
+      totalMatches: 0,
+      totalAssigned: 0,
+    }
+  );
+};
+
+/**
+ * Assign multiple clients to a package
+ */
+export const assignClientsToPackage = async (
+  packageId: string,
+  clientIds: string[]
+) => {
+  const response = await api.post(`/profiles/${packageId}/assign-clients`, {
+    clientIds,
+  });
+  return response.data?.data;
+};
+
+/**
+ * Get package analytics showing client distribution
+ */
+export const getPackageAnalytics = async () => {
+  const response = await api.get("/profiles/analytics/overview");
+  return response.data?.data || [];
+};
+
+/**
+ * Get unassigned clients grouped by Mikrotik profile
+ */
+export const getUnassignedClients = async () => {
+  const response = await api.get("/profiles/unassigned-clients");
+  return (
+    response.data?.data || {
+      unassignedClients: [],
+      groupedByProfile: {},
+      totalUnassigned: 0,
+      profileGroups: [],
+    }
+  );
+};
+
+/**
  * Helper to coerce the string monthlyPrice to a number when needed
  */
 export const getMonthlyPriceNumber = (

@@ -37,7 +37,6 @@ export default function ZonesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [showPassword, setShowPassword] = useState(false);
 
   const queryClient = useQueryClient();
 

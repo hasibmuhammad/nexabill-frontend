@@ -2,6 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { useOutsideClick } from "@/hooks/use-outside-click";
+import { getMikrotikServers } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 import { Filter, X } from "lucide-react";
 import { useState } from "react";
 
@@ -9,18 +11,29 @@ interface ClientFiltersProps {
   onRefresh?: () => void;
   onExport?: () => void;
   isLoading?: boolean;
+  selectedServer?: string;
+  onServerChange?: (serverId: string) => void;
 }
 
 export function ClientFilters({
   onRefresh,
   onExport,
   isLoading = false,
+  selectedServer = "",
+  onServerChange,
 }: ClientFiltersProps) {
   const [showFilters, setShowFilters] = useState(false);
 
   const filterRef = useOutsideClick({
     callback: () => setShowFilters(false),
     enabled: showFilters,
+  });
+
+  // Fetch Mikrotik servers for filter dropdown
+  const { data: mikrotikServers = [] } = useQuery({
+    queryKey: ["mikrotik-servers"],
+    queryFn: getMikrotikServers,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   return (
@@ -40,7 +53,7 @@ export function ClientFilters({
         Filters
         {showFilters && (
           <span className="ml-2 inline-flex items-center justify-center w-5 h-5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
-            4
+            5
           </span>
         )}
       </Button>
@@ -63,7 +76,7 @@ export function ClientFilters({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             {/* Status Filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -87,6 +100,25 @@ export function ClientFilters({
                 <option value="">All Connections</option>
                 <option value="CONNECTED">Connected</option>
                 <option value="DISCONNECTED">Disconnected</option>
+              </select>
+            </div>
+
+            {/* Mikrotik Server Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Mikrotik Server
+              </label>
+              <select
+                value={selectedServer}
+                onChange={(e) => onServerChange?.(e.target.value)}
+                className="w-full h-10 px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Servers</option>
+                {mikrotikServers.map((server: any) => (
+                  <option key={server.id} value={server.id}>
+                    {server.name}
+                  </option>
+                ))}
               </select>
             </div>
 

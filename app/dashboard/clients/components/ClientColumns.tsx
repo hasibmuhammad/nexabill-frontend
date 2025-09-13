@@ -3,11 +3,20 @@
 import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@/components/ui/data-table";
 import {
+  formatIPAddress,
+  formatUptime,
+  getConnectionQuality,
+  getEncodingDisplayName,
+  getServiceDisplayName,
+} from "@/lib/utils/connection-utils";
+import {
   Activity,
   AlertCircle,
   CheckCircle,
   Clock,
   Edit,
+  Globe,
+  Shield,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -59,14 +68,32 @@ interface ISPClient {
   protocolType?: any | null;
 }
 
+interface ConnectionSession {
+  ".id": string;
+  name: string;
+  service: string;
+  "caller-id": string;
+  address: string;
+  uptime: string;
+  encoding: string;
+  "session-id": string;
+  "limit-bytes-in": string;
+  "limit-bytes-out": string;
+  radius: string;
+  serverId: string;
+  serverName: string;
+}
+
 interface ClientColumnsProps {
   onEdit: (client: ISPClient) => void;
   isClientOnline: (client: ISPClient) => boolean;
+  getClientSession: (client: ISPClient) => ConnectionSession | null;
 }
 
 export function useClientColumns({
   onEdit,
   isClientOnline,
+  getClientSession,
 }: ClientColumnsProps) {
   const formatCurrency = (amount: number | undefined | null) => {
     if (amount === undefined || amount === null) {
@@ -190,35 +217,68 @@ export function useClientColumns({
     },
     {
       id: "connection",
-      header: "Connection",
+      header: "Connection Details",
       accessorKey: "connectionStatus",
       enableSorting: false,
-      columnClassName: "text-center",
       cell: ({ original: client }) => {
         const isOnline = isClientOnline(client);
+        const session = getClientSession(client);
+
+        if (!isOnline || !session) {
+          return (
+            <div className="space-y-1">
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                <WifiOff className="h-3 w-3 mr-1 text-red-500" />
+                <span className="text-sm font-medium text-red-600">
+                  Offline
+                </span>
+              </div>
+            </div>
+          );
+        }
+
+        const connectionQuality = getConnectionQuality(session.uptime);
+        const formattedUptime = formatUptime(session.uptime);
+        const ipAddress = formatIPAddress(session["caller-id"]);
+        const serviceType = getServiceDisplayName(session.service);
+        const encoding = getEncodingDisplayName(session.encoding);
+
         return (
-          <div className="text-center">
-            <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                isOnline
-                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                  : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-              }`}
-            >
-              {isOnline ? (
-                <>
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
-                  <Wifi className="h-3 w-3 mr-1" />
-                  <span>Online</span>
-                </>
-              ) : (
-                <>
-                  <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
-                  <WifiOff className="h-3 w-3 mr-1" />
-                  <span>Offline</span>
-                </>
-              )}
-            </span>
+          <div className="space-y-2">
+            {/* Connection Status */}
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+              <Wifi className="h-3 w-3 mr-1 text-green-500" />
+              <span className="text-sm font-medium text-green-600">Online</span>
+            </div>
+
+            {/* IP Address */}
+            <div className="flex items-center text-xs">
+              <Globe className="h-3 w-3 mr-1 text-slate-400" />
+              <span className="font-mono bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">
+                {ipAddress}
+              </span>
+            </div>
+
+            {/* Uptime */}
+            <div className="flex items-center text-xs">
+              <Clock className="h-3 w-3 mr-1 text-slate-400" />
+              <span className={`font-medium ${connectionQuality.color}`}>
+                {formattedUptime}
+              </span>
+            </div>
+
+            {/* Service Type & Encryption */}
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center">
+                <Shield className="h-3 w-3 mr-1 text-slate-400" />
+                <span className="text-slate-600 dark:text-slate-400">
+                  {serviceType}
+                </span>
+              </div>
+              <span className="text-slate-500">{encoding}</span>
+            </div>
           </div>
         );
       },
