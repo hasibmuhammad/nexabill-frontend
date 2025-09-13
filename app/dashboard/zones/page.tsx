@@ -1,5 +1,6 @@
 "use client";
 
+import { ZoneSearch } from "@/app/dashboard/zones/components/ZoneSearch";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, DataTable } from "@/components/ui/data-table";
@@ -393,12 +394,9 @@ export default function ZonesPage() {
               />
             </div>
             <div className="lg:ml-auto">
-              <Input
-                type="text"
-                placeholder="Search zones by name, code, or description..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-10 w-80"
+              <ZoneSearch
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
               />
             </div>
           </div>

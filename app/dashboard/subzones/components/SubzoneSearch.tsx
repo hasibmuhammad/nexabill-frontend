@@ -4,15 +4,15 @@ import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-interface PackageSearchProps {
+interface SubzoneSearchProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
 }
 
-export function PackageSearch({
+export function SubzoneSearch({
   searchValue,
   onSearchChange,
-}: PackageSearchProps) {
+}: SubzoneSearchProps) {
   const [localSearch, setLocalSearch] = useState(searchValue);
 
   // Sync local search with parent search
@@ -38,7 +38,7 @@ export function PackageSearch({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
-            placeholder="Search packages by name, profile, or description..."
+            placeholder="Search subzones by name, description, or zone..."
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             className="pl-10 pr-10 h-10 w-80"

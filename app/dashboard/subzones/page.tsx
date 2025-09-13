@@ -1,5 +1,6 @@
 "use client";
 
+import { SubzoneSearch } from "@/app/dashboard/subzones/components/SubzoneSearch";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, DataTable } from "@/components/ui/data-table";
@@ -423,12 +424,9 @@ export default function SubzonesPage() {
               />
             </div>
             <div className="lg:ml-auto">
-              <Input
-                type="text"
-                placeholder="Search subzones by name, description, or zone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-10 w-80"
+              <SubzoneSearch
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
               />
             </div>
           </div>
