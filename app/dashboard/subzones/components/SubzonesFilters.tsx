@@ -1,0 +1,135 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { useOutsideClick } from "@/hooks/use-outside-click";
+import { Filter, X } from "lucide-react";
+import { useMemo, useState } from "react";
+
+interface SubzonesFiltersProps {
+  status: string;
+  onChangeStatus: (value: string) => void;
+  zoneId: string;
+  onChangeZoneId: (value: string) => void;
+  zones: Array<{ id: string; name: string }>;
+  isLoading?: boolean;
+}
+
+export function SubzonesFilters({
+  status,
+  onChangeStatus,
+  zoneId,
+  onChangeZoneId,
+  zones,
+  isLoading = false,
+}: SubzonesFiltersProps) {
+  const [showFilters, setShowFilters] = useState(false);
+
+  const activeCount = useMemo(() => {
+    let count = 0;
+    if (status !== "ALL") count += 1;
+    if (zoneId !== "ALL") count += 1;
+    return count;
+  }, [status, zoneId]);
+
+  const filterRef = useOutsideClick({
+    callback: () => setShowFilters(false),
+    enabled: showFilters,
+  });
+
+  return (
+    <div className="relative flex items-center space-x-3">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowFilters(!showFilters)}
+        disabled={isLoading}
+        className={`h-10 px-4 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 ${
+          showFilters
+            ? "bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/20 dark:border-blue-600 dark:text-blue-400"
+            : ""
+        }`}
+      >
+        <Filter className="h-4 w-4 mr-2" />
+        Filters
+        {activeCount > 0 && (
+          <span className="ml-2 inline-flex items-center justify-center w-5 h-5 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
+            {activeCount}
+          </span>
+        )}
+      </Button>
+
+      {showFilters && (
+        <div
+          ref={filterRef as any}
+          className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-30 p-6 min-w-[500px]"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+              Filter Subzones
+            </h3>
+            <button
+              onClick={() => setShowFilters(false)}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => onChangeStatus(e.target.value)}
+                className="w-full h-10 px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Zone
+              </label>
+              <select
+                value={zoneId}
+                onChange={(e) => onChangeZoneId(e.target.value)}
+                className="w-full h-10 px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="ALL">All Zones</option>
+                {zones.map((zone) => (
+                  <option key={zone.id} value={zone.id}>
+                    {zone.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(false)}
+              className="h-9 px-4"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowFilters(false)}
+              className="h-9 px-4"
+            >
+              Apply Filters
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

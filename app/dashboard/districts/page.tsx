@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import PageLoader from "@/components/ui/page-loader";
+import { Textarea } from "@/components/ui/textarea";
 import {
   createDistrict,
   deleteDistrict,
@@ -537,13 +538,12 @@ function DistrictForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-          Description
-        </label>
-        <Input
+        <Textarea
+          label="Description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Enter description (optional)"
+          rows={3}
         />
       </div>
 

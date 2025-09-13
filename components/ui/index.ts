@@ -23,3 +23,4 @@ export {
   TableHeader,
   TableRow,
 } from "./table";
+export { Textarea } from "./textarea";

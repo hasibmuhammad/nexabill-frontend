@@ -122,9 +122,10 @@ export function useClientColumns({
   const columns: ColumnDef<ISPClient, any>[] = [
     {
       id: "trackCode",
-      header: "Code",
+      header: "Client Code",
       accessorKey: "trackCode",
       enableSorting: false,
+      columnClassName: "text-center",
       cell: ({ original: client }) => (
         <div className="text-center">
           <span className="font-mono text-sm bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
@@ -135,7 +136,7 @@ export function useClientColumns({
     },
     {
       id: "client",
-      header: "Client",
+      header: "Client ID",
       accessorKey: "name",
       enableSorting: false,
       cell: ({ original: client }) => (
@@ -174,17 +175,17 @@ export function useClientColumns({
       header: "Status",
       accessorKey: "status",
       enableSorting: false,
+      columnClassName: "text-center",
+      cellClassName: "text-center",
       cell: ({ original: client }) => (
-        <div className="text-center">
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-              client.status
-            )}`}
-          >
-            {getStatusIcon(client.status)}
-            <span className="ml-1">{client.status}</span>
-          </span>
-        </div>
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+            client.status
+          )}`}
+        >
+          {getStatusIcon(client.status)}
+          <span className="ml-1">{client.status}</span>
+        </span>
       ),
     },
     {
@@ -192,6 +193,7 @@ export function useClientColumns({
       header: "Connection",
       accessorKey: "connectionStatus",
       enableSorting: false,
+      columnClassName: "text-center",
       cell: ({ original: client }) => {
         const isOnline = isClientOnline(client);
         return (
@@ -226,6 +228,7 @@ export function useClientColumns({
       header: "Bill Cycle",
       accessorKey: "billCycleDate",
       enableSorting: false,
+      columnClassName: "text-center",
       cell: ({ original: client }) => {
         const billCycle = getBillCycleStatus(client.billCycleDate);
         return (

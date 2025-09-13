@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Modal from "@/components/ui/modal";
+import { Textarea } from "@/components/ui/textarea";
 import {
   addMikrotikServer,
   checkServerStatus,
@@ -786,13 +787,12 @@ export default function ServersPage() {
                 </p>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Description (Optional)
-                </label>
-                <Input
+                <Textarea
+                  label="Description (Optional)"
                   name="description"
                   placeholder="Server description"
                   className="text-sm"
+                  rows={3}
                 />
               </div>
             </div>
@@ -997,14 +997,13 @@ export default function ServersPage() {
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-400 mb-1">
-                    Description (Optional)
-                  </label>
-                  <Input
+                  <Textarea
+                    label="Description (Optional)"
                     name="description"
                     defaultValue={selectedServer.description || ""}
                     placeholder="Server description"
                     className="text-sm"
+                    rows={3}
                   />
                 </div>
               </div>

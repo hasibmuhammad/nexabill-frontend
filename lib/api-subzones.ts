@@ -4,14 +4,12 @@ import { api } from "./api";
 export interface Subzone {
   id: string;
   name: string;
-  code?: string;
   description?: string;
   isActive: boolean;
   zoneId: string;
   zone: {
     id: string;
     name: string;
-    code?: string;
   };
   createdById: string;
   createdBy: {
@@ -25,14 +23,12 @@ export interface Subzone {
 
 export interface CreateSubzoneDto {
   name: string;
-  code?: string;
   description?: string;
   zoneId: string;
 }
 
 export interface UpdateSubzoneDto {
   name?: string;
-  code?: string;
   description?: string;
   zoneId?: string;
 }

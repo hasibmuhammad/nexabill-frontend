@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageLoader } from "@/components/ui/page-loader";
+import { Textarea } from "@/components/ui/textarea";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   createZone,
@@ -474,9 +475,8 @@ export default function ZonesPage() {
             />
           </div>
 
-          <Input
+          <Textarea
             label="Description"
-            type="text"
             value={formData.description}
             onChange={(e) => {
               setFormData({ ...formData, description: e.target.value });
@@ -485,6 +485,7 @@ export default function ZonesPage() {
             }}
             placeholder="Optional description"
             error={errors.description}
+            rows={3}
           />
         </form>
 

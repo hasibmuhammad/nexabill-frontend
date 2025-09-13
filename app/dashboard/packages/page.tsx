@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   getMikrotikServers,
@@ -661,9 +662,8 @@ function ProfileForm({
         disabled={submitting}
       />
 
-      <Input
+      <Textarea
         label="Description"
-        type="text"
         value={formState.description || ""}
         onChange={(e) => {
           setFormState((prev) => ({ ...prev, description: e.target.value }));
@@ -671,6 +671,7 @@ function ProfileForm({
         }}
         placeholder="Optional description"
         disabled={submitting}
+        rows={3}
       />
     </form>
   );
