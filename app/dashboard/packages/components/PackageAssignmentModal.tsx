@@ -8,13 +8,11 @@ import { useDataTable } from "@/hooks/use-data-table";
 import {
   assignClientsToPackage,
   getMatchingClients,
-  getUnassignedClients,
   ServiceProfile,
 } from "@/lib/packages";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 // import { ColumnDef } from "@tanstack/react-table";
 import {
-  AlertCircle,
   ArrowRight,
   CheckCircle,
   Info,
@@ -28,7 +26,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 
 interface MatchingClient {
@@ -64,23 +62,23 @@ export function PackageAssignmentModal({
   packageProfile,
   onSuccess,
 }: PackageAssignmentModalProps) {
-  const [viewMode, setViewMode] = useState<"matching" | "unassigned">(
-    "matching"
-  );
+  // Remove viewMode state since we only have matching clients now
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
 
   // Use the same data table hook as the client page
   const dataTable = useDataTable();
+  const hasClearedSelection = useRef(false);
 
-  // Debug selection changes
+  // Clear selection when modal opens
   useEffect(() => {
-    console.log(
-      "Selected clients changed:",
-      dataTable.selectedRows.size,
-      Array.from(dataTable.selectedRows)
-    );
-  }, [dataTable.selectedRows]);
+    if (isOpen && !hasClearedSelection.current) {
+      dataTable.clearSelection();
+      hasClearedSelection.current = true;
+    } else if (!isOpen) {
+      hasClearedSelection.current = false;
+    }
+  }, [isOpen]);
 
   // Fetch matching clients for the package
   const {
@@ -90,18 +88,7 @@ export function PackageAssignmentModal({
   } = useQuery({
     queryKey: ["matching-clients", packageProfile?.id],
     queryFn: () => getMatchingClients(packageProfile!.id),
-    enabled: !!packageProfile && viewMode === "matching",
-  });
-
-  // Fetch unassigned clients
-  const {
-    data: unassignedData,
-    isLoading: unassignedLoading,
-    refetch: refetchUnassigned,
-  } = useQuery({
-    queryKey: ["unassigned-clients"],
-    queryFn: getUnassignedClients,
-    enabled: viewMode === "unassigned",
+    enabled: !!packageProfile,
   });
 
   // Assignment mutation
@@ -119,9 +106,9 @@ export function PackageAssignmentModal({
       );
       dataTable.clearSelection();
       refetchMatching();
-      refetchUnassigned();
       queryClient.invalidateQueries({ queryKey: ["profiles"] });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["matching-clients-count"] });
       onSuccess?.();
     },
     onError: (error: any) => {
@@ -143,19 +130,10 @@ export function PackageAssignmentModal({
     });
   };
 
-  // Get current clients based on view mode
+  // Get current clients (only matching clients now)
   const currentClients = useMemo(() => {
-    if (viewMode === "matching") {
-      return matchingData?.matchingClients || [];
-    } else {
-      // Filter unassigned clients by Mikrotik profile
-      const profileGroup =
-        unassignedData?.groupedByProfile?.[
-          packageProfile?.mikrotikProfile || ""
-        ] || [];
-      return profileGroup;
-    }
-  }, [viewMode, matchingData, unassignedData, packageProfile]);
+    return matchingData?.matchingClients || [];
+  }, [matchingData]);
 
   // Filter clients based on search term
   const filteredClients = useMemo(() => {
@@ -170,138 +148,137 @@ export function PackageAssignmentModal({
     );
   }, [currentClients, searchTerm]);
 
-  // No pagination - show all clients for easy bulk selection
+  const isLoading = matchingLoading;
 
-  // Debug: Log the data structure
-  useEffect(() => {
-    if (filteredClients.length > 0) {
-      console.log("Sample client data:", filteredClients[0]);
-      console.log(
-        "Client IDs:",
-        filteredClients.map((c: any) => c.id)
-      );
-      console.log("Current selection:", Array.from(dataTable.selectedRows));
-    }
-  }, [filteredClients, dataTable.selectedRows]);
+  // Memoized handlers for better performance
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchTerm(e.target.value);
+    },
+    []
+  );
 
-  const isLoading = matchingLoading || unassignedLoading;
+  const getRowId = useCallback((row: any) => row.id, []);
 
-  // Define table columns
-  const columns = [
-    {
-      id: "name",
-      accessorKey: "name",
-      header: "Client Details",
-      cell: ({ row }: any) => (
-        <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-              {row.original.name.charAt(0).toUpperCase()}
+  // Memoized table columns for better performance
+  const columns = useMemo(
+    () => [
+      {
+        id: "name",
+        accessorKey: "name",
+        header: "Client Details",
+        cell: ({ row }: any) => (
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                {row.original.name.charAt(0).toUpperCase()}
+              </div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-slate-900 dark:text-slate-100 truncate">
+                {row.original.name}
+              </div>
+              <div className="text-sm text-slate-500 dark:text-slate-400 font-mono">
+                @{row.original.mikrotikUsername}
+              </div>
             </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="font-medium text-slate-900 dark:text-slate-100 truncate">
-              {row.original.name}
-            </div>
-            <div className="text-sm text-slate-500 dark:text-slate-400 font-mono">
-              @{row.original.mikrotikUsername}
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "serviceProfile",
-      accessorKey: "serviceProfile",
-      header: "Profile",
-      cell: ({ row }: any) => (
-        <Badge
-          variant="outline"
-          className="font-mono text-xs bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600"
-        >
-          {row.original.serviceProfile}
-        </Badge>
-      ),
-    },
-    {
-      id: "status",
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }: any) => {
-        const status = row.original.status;
-        const variant = status === "ACTIVE" ? "default" : "secondary";
-        const icon = status === "ACTIVE" ? UserCheck : UserX;
-        const Icon = icon;
-
-        return (
-          <Badge
-            variant={variant}
-            className={`flex items-center space-x-1 text-xs ${
-              status === "ACTIVE"
-                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
-            }`}
-          >
-            <Icon className="h-3 w-3" />
-            <span>{status}</span>
-          </Badge>
-        );
+        ),
       },
-    },
-    {
-      id: "connectionStatus",
-      accessorKey: "connectionStatus",
-      header: "Connection",
-      cell: ({ row }: any) => {
-        const status = row.original.connectionStatus;
-        const variant = status === "CONNECTED" ? "default" : "secondary";
-        const icon = status === "CONNECTED" ? Wifi : WifiOff;
-        const Icon = icon;
-
-        return (
+      {
+        id: "serviceProfile",
+        accessorKey: "serviceProfile",
+        header: "Profile",
+        cell: ({ row }: any) => (
           <Badge
-            variant={variant}
-            className={`flex items-center space-x-1 text-xs ${
-              status === "CONNECTED"
-                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
-            }`}
+            variant="outline"
+            className="font-mono text-xs bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600"
           >
-            <Icon className="h-3 w-3" />
-            <span>{status}</span>
+            {row.original.serviceProfile}
           </Badge>
-        );
+        ),
       },
-    },
-    {
-      id: "mikrotikServer",
-      accessorKey: "mikrotikServer.name",
-      header: "Server",
-      cell: ({ row }: any) => (
-        <div className="flex items-center space-x-2">
-          <Server className="h-4 w-4 text-slate-400" />
-          <span className="text-sm font-medium">
-            {row.original.mikrotikServer.name}
-          </span>
-        </div>
-      ),
-    },
-    {
-      id: "monthlyFee",
-      accessorKey: "monthlyFee",
-      header: "Current Fee",
-      cell: ({ row }: any) => (
-        <div className="text-right">
-          <span className="font-mono text-sm font-medium">
-            ৳{Number(row.original.monthlyFee).toFixed(2)}
-          </span>
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            → ৳{Number(packageProfile?.monthlyPrice || 0).toFixed(2)}
+      {
+        id: "status",
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }: any) => {
+          const status = row.original.status;
+          const variant = status === "ACTIVE" ? "default" : "secondary";
+          const icon = status === "ACTIVE" ? UserCheck : UserX;
+          const Icon = icon;
+
+          return (
+            <Badge
+              variant={variant}
+              className={`flex items-center space-x-1 text-xs ${
+                status === "ACTIVE"
+                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+              }`}
+            >
+              <Icon className="h-3 w-3" />
+              <span>{status}</span>
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "connectionStatus",
+        accessorKey: "connectionStatus",
+        header: "Connection",
+        cell: ({ row }: any) => {
+          const status = row.original.connectionStatus;
+          const variant = status === "CONNECTED" ? "default" : "secondary";
+          const icon = status === "CONNECTED" ? Wifi : WifiOff;
+          const Icon = icon;
+
+          return (
+            <Badge
+              variant={variant}
+              className={`flex items-center space-x-1 text-xs ${
+                status === "CONNECTED"
+                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                  : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+              }`}
+            >
+              <Icon className="h-3 w-3" />
+              <span>{status}</span>
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "mikrotikServer",
+        accessorKey: "mikrotikServer.name",
+        header: "Server",
+        cell: ({ row }: any) => (
+          <div className="flex items-center space-x-2">
+            <Server className="h-4 w-4 text-slate-400" />
+            <span className="text-sm font-medium">
+              {row.original.mikrotikServer.name}
+            </span>
           </div>
-        </div>
-      ),
-    },
-  ];
+        ),
+      },
+      {
+        id: "monthlyFee",
+        accessorKey: "monthlyFee",
+        header: "Current Fee",
+        cell: ({ row }: any) => (
+          <div className="text-right">
+            <span className="font-mono text-sm font-medium">
+              ৳{Number(row.original.monthlyFee).toFixed(2)}
+            </span>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              → ৳{Number(packageProfile?.monthlyPrice || 0).toFixed(2)}
+            </div>
+          </div>
+        ),
+      },
+    ],
+    [packageProfile?.monthlyPrice]
+  );
 
   if (!packageProfile) return null;
 
@@ -358,16 +335,12 @@ export function PackageAssignmentModal({
           </div>
         </div>
 
-        {/* View Mode Toggle */}
+        {/* Matching Clients Tab */}
         <div className="flex items-center justify-between">
           <div className="flex space-x-2">
             <Button
-              variant={viewMode === "matching" ? "primary" : "outline"}
+              variant="primary"
               size="sm"
-              onClick={() => {
-                setViewMode("matching");
-                dataTable.clearSelection();
-              }}
               className="flex items-center space-x-2"
             >
               <CheckCircle className="h-4 w-4" />
@@ -376,35 +349,17 @@ export function PackageAssignmentModal({
                 {matchingData?.totalMatches || 0}
               </Badge>
             </Button>
-            <Button
-              variant={viewMode === "unassigned" ? "primary" : "outline"}
-              size="sm"
-              onClick={() => {
-                setViewMode("unassigned");
-                dataTable.clearSelection();
-              }}
-              className="flex items-center space-x-2"
-            >
-              <AlertCircle className="h-4 w-4" />
-              <span>Unassigned Clients</span>
-              <Badge variant="secondary" className="ml-1">
-                {unassignedData?.totalUnassigned || 0}
-              </Badge>
-            </Button>
           </div>
 
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              if (viewMode === "matching") refetchMatching();
-              else refetchUnassigned();
-            }}
-            disabled={isLoading}
+            onClick={() => refetchMatching()}
+            disabled={matchingLoading}
             className="flex items-center space-x-2"
           >
             <RefreshCw
-              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              className={`h-4 w-4 ${matchingLoading ? "animate-spin" : ""}`}
             />
             <span>Refresh</span>
           </Button>
@@ -417,7 +372,7 @@ export function PackageAssignmentModal({
             type="text"
             placeholder="Search clients by name, username, or server..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -427,18 +382,14 @@ export function PackageAssignmentModal({
           <DataTable
             columns={columns}
             data={filteredClients}
-            loading={isLoading}
-            emptyMessage={
-              viewMode === "matching"
-                ? "No unassigned clients found with matching Mikrotik profile"
-                : "No unassigned clients found with this Mikrotik profile"
-            }
+            loading={matchingLoading}
+            emptyMessage="No available clients found with matching Mikrotik profile"
             striped={true}
             hoverable={true}
             enableRowSelection={true}
             selectedRows={dataTable.selectedRows}
             onSelectionChange={dataTable.setSelectedRows}
-            getRowId={(row: any) => row.id}
+            getRowId={getRowId}
             disablePagination={true}
           />
         </div>

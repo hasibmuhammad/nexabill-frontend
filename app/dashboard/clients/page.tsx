@@ -11,14 +11,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { api, getRealTimeConnectionStatus } from "@/lib/api";
 import { getPppoeProfiles, ServiceProfile } from "@/lib/packages";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  Download,
-  Package,
-  Plus,
-  RefreshCw,
-  Wifi,
-} from "lucide-react";
+import { ArrowRight, Download, Package, Plus, Wifi } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useClientColumns } from "./components/ClientColumns";
@@ -123,8 +116,14 @@ export default function ClientsPage() {
     initialSortOrder: "asc",
   });
 
-  // Server filter state
-  const [selectedServer, setSelectedServer] = useState("");
+  // Consolidated filter state
+  const [filters, setFilters] = useState({
+    server: "",
+    status: "",
+    connection: "",
+    zone: "",
+    district: "",
+  });
 
   // Use the debounce hook for search
   const debouncedSearch = useDebounce({ value: dataTable.search, delay: 500 });
@@ -159,7 +158,7 @@ export default function ClientsPage() {
       dataTable.sortBy,
       dataTable.sortOrder,
       debouncedSearch,
-      selectedServer,
+      filters,
     ],
     queryFn: async () => {
       const response = await api.get("/clients", {
@@ -169,7 +168,12 @@ export default function ClientsPage() {
           sortBy: dataTable.sortBy,
           sortOrder: dataTable.sortOrder,
           search: debouncedSearch,
-          mikrotikServerId: selectedServer || undefined,
+          mikrotikServerId: filters.server || undefined,
+          status: filters.status || undefined,
+          connectionStatus: filters.connection || undefined,
+          // Note: Zone and District filters are not yet implemented in backend
+          // zone: filters.zone || undefined,
+          // district: filters.district || undefined,
         },
       });
 
@@ -241,10 +245,15 @@ export default function ClientsPage() {
     };
   }, [isLoading, clients, refetch, realTimeLoading, refetchRealTime]);
 
-  // Reset page index when search or server filter changes
+  // Reset page index when search or any filter changes
   useEffect(() => {
     dataTable.setPageIndex(0);
-  }, [dataTable.search, dataTable.setPageIndex, selectedServer]);
+  }, [dataTable.search, dataTable.setPageIndex, filters]);
+
+  // Helper function to update individual filters
+  const updateFilter = (key: keyof typeof filters, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   // Helper function to check if search is being processed
   const isSearching =
@@ -380,42 +389,6 @@ export default function ClientsPage() {
     return totalClients - totalOnlineClients;
   }, [systemTotal, totalOnlineClients]);
 
-  // Main actions
-  const actions = (
-    <div className="flex space-x-2">
-      <Button
-        variant="outline"
-        onClick={() => {
-          toast.success("Refreshing client data...");
-          refetch();
-        }}
-        disabled={isLoading}
-      >
-        <RefreshCw
-          className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-        />
-        Refresh
-      </Button>
-      <Button
-        variant="outline"
-        onClick={() => {
-          toast.success("Syncing with Mikrotik routers...");
-          refetchRealTime();
-        }}
-        disabled={realTimeLoading}
-      >
-        <Wifi
-          className={`h-4 w-4 mr-2 ${realTimeLoading ? "animate-pulse" : ""}`}
-        />
-        Sync
-      </Button>
-      <Button onClick={() => setShowAddForm(true)}>
-        <Plus className="h-4 w-4 mr-2" />
-        Add Client
-      </Button>
-    </div>
-  );
-
   if (isLoading || realTimeLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
@@ -493,25 +466,9 @@ export default function ClientsPage() {
             {/* Left Side - Filters */}
             <div className="flex-1">
               <ClientFilters
-                onRefresh={refetch}
-                onExport={() => {
-                  toast.success("Exporting client data...");
-                  // TODO: Implement actual export functionality
-                  const csvContent =
-                    "data:text/csv;charset=utf-8," +
-                    "Name,Email,Status,Phone,Address\n" +
-                    "Sample Client,sample@example.com,Active,+1234567890,123 Main St";
-                  const encodedUri = encodeURI(csvContent);
-                  const link = document.createElement("a");
-                  link.setAttribute("href", encodedUri);
-                  link.setAttribute("download", "clients.csv");
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
                 isLoading={isLoading}
-                selectedServer={selectedServer}
-                onServerChange={setSelectedServer}
+                filters={filters}
+                onFilterChange={updateFilter}
               />
             </div>
 

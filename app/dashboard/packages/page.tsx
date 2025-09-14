@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebounce } from "@/hooks/use-debounce";
+import { usePackageAnalytics } from "@/hooks/use-package-analytics";
 import {
   getMikrotikServers,
   getProfilesFromMikrotik,
@@ -31,10 +32,10 @@ import {
   Plus,
   RefreshCw,
   Trash2,
-  Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
+import { AssignButtonWithBadge } from "./components/AssignButtonWithBadge";
 import { PackageAnalytics } from "./components/PackageAnalytics";
 import { PackageAssignmentModal } from "./components/PackageAssignmentModal";
 import { PackageFilters } from "./components/PackageFilters";
@@ -72,6 +73,9 @@ export default function PackagesPage() {
     queryFn: getPppoeProfiles,
   });
 
+  // Fetch package analytics for client counts
+  const { data: analyticsData } = usePackageAnalytics();
+
   const filtered = useMemo(() => {
     if (!profiles) return [] as ServiceProfile[];
     if (!debouncedSearch) return profiles;
@@ -99,7 +103,11 @@ export default function PackagesPage() {
       queryClient.invalidateQueries({ queryKey: ["profiles"] });
       setShowForm(false);
     },
-    onError: () => toast.error("Failed to create package"),
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message || "Failed to create package";
+      toast.error(message);
+    },
   });
 
   const updateMut = useMutation({
@@ -116,7 +124,11 @@ export default function PackagesPage() {
       setShowForm(false);
       setEditing(null);
     },
-    onError: () => toast.error("Failed to update package"),
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message || "Failed to update package";
+      toast.error(message);
+    },
   });
 
   const deleteMut = useMutation({
@@ -125,7 +137,11 @@ export default function PackagesPage() {
       toast.success("Package deleted");
       queryClient.invalidateQueries({ queryKey: ["profiles"] });
     },
-    onError: () => toast.error("Failed to delete package"),
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message || "Failed to delete package";
+      toast.error(message);
+    },
   });
 
   const startEdit = (p: ServiceProfile) => {
@@ -222,37 +238,34 @@ export default function PackagesPage() {
       id: "actions",
       header: "Actions",
       enableSorting: false,
-      cell: ({ original: p }) => (
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setSelectedPackage(p);
-              setShowAssignmentModal(true);
-            }}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-            title="Assign clients to this package"
-          >
-            <Users className="h-3 w-3" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => startEdit(p)}>
-            <Edit className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (confirm("Are you sure you want to delete this package?")) {
-                deleteMut.mutate(p.id);
-              }
-            }}
-            className="text-red-600 hover:text-red-700"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      ),
+      cell: ({ original: p }) => {
+        return (
+          <div className="flex space-x-2">
+            <AssignButtonWithBadge
+              package={p}
+              onAssign={() => {
+                setSelectedPackage(p);
+                setShowAssignmentModal(true);
+              }}
+            />
+            <Button variant="outline" size="sm" onClick={() => startEdit(p)}>
+              <Edit className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (confirm("Are you sure you want to delete this package?")) {
+                  deleteMut.mutate(p.id);
+                }
+              }}
+              className="text-red-600 hover:text-red-700"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
