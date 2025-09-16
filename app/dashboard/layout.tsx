@@ -35,9 +35,10 @@ const navigationStructure = [
     type: "group",
     children: [
       { name: "Packages", href: "/dashboard/packages", icon: Package },
+      { name: "Districts", href: "/dashboard/districts", icon: MapPin },
+      { name: "Upazilas", href: "/dashboard/upazilas", icon: MapPin },
       { name: "Zones", href: "/dashboard/zones", icon: MapPin },
       { name: "Subzones", href: "/dashboard/subzones", icon: MapPin },
-      { name: "Districts", href: "/dashboard/districts", icon: MapPin },
       {
         name: "Connection Types",
         href: "/dashboard/connection-types",
@@ -98,9 +99,10 @@ export default function DashboardLayout({
     if (
       pathname &&
       (pathname.startsWith("/dashboard/packages") ||
+        pathname.startsWith("/dashboard/districts") ||
+        pathname.startsWith("/dashboard/upazilas") ||
         pathname.startsWith("/dashboard/zones") ||
         pathname.startsWith("/dashboard/subzones") ||
-        pathname.startsWith("/dashboard/districts") ||
         pathname.startsWith("/dashboard/connection-types") ||
         pathname.startsWith("/dashboard/protocol-types"))
     ) {

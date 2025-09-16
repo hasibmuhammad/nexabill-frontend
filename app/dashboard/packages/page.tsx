@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -48,6 +49,10 @@ export default function PackagesPage() {
   const [editing, setEditing] = useState<ServiceProfile | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [packageToDelete, setPackageToDelete] = useState<ServiceProfile | null>(
+    null
+  );
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<ServiceProfile | null>(
     null
@@ -147,6 +152,24 @@ export default function PackagesPage() {
   const startEdit = (p: ServiceProfile) => {
     setEditing(p);
     setShowForm(true);
+  };
+
+  const handleDeleteClick = (p: ServiceProfile) => {
+    setPackageToDelete(p);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (packageToDelete) {
+      deleteMut.mutate(packageToDelete.id);
+      setShowDeleteConfirm(false);
+      setPackageToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setPackageToDelete(null);
   };
 
   const handlePageChange = (page: number) => {
@@ -254,11 +277,7 @@ export default function PackagesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                if (confirm("Are you sure you want to delete this package?")) {
-                  deleteMut.mutate(p.id);
-                }
-              }}
+              onClick={() => handleDeleteClick(p)}
               className="text-red-600 hover:text-red-700"
             >
               <Trash2 className="h-3 w-3" />
@@ -463,6 +482,19 @@ export default function PackagesPage() {
                 setSelectedPackage(null);
                 refetch(); // Refresh packages list
               }}
+            />
+
+            <ConfirmDialog
+              isOpen={showDeleteConfirm}
+              title="Delete Package"
+              description={`Are you sure you want to delete "${packageToDelete?.name}"? This action cannot be undone.`}
+              confirmText="Delete Package"
+              cancelText="Cancel"
+              onConfirm={handleDeleteConfirm}
+              onCancel={handleDeleteCancel}
+              isLoading={deleteMut.isPending}
+              confirmVariant="danger"
+              tone="danger"
             />
           </>
         )}
