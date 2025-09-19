@@ -36,6 +36,7 @@ interface ISPClient {
   mikrotikServer: {
     id: string;
     name: string;
+    status?: "ACTIVE" | "INACTIVE" | "ERROR";
   };
   email?: string | null;
   nid?: string | null;

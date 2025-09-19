@@ -14,6 +14,7 @@ import {
   importUsersFromMikrotik,
   syncClientsWithMikrotik,
   testServerConnection,
+  toggleServerStatus,
   updateMikrotikServer,
   type MikrotikServer,
 } from "@/lib/api-mikrotik";
@@ -424,6 +425,29 @@ export default function ServersPage() {
       } else if (error.response?.data?.message) {
         console.log("Backend error:", error.response.data.message);
       }
+    },
+  });
+
+  // Toggle server status mutation
+  const toggleStatusMutation = useMutation({
+    mutationFn: toggleServerStatus,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["mikrotik-servers-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["mikrotik-servers-with-status"],
+      });
+      // Also invalidate clients query to refresh the client list
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["clients-total"] });
+      toast.success(data.message || "Server status updated successfully!");
+    },
+    onError: (error: any) => {
+      console.error("Toggle status error:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to toggle server status";
+      toast.error(errorMessage);
     },
   });
 
@@ -1315,6 +1339,39 @@ export default function ServersPage() {
                   </Button>
                 </div>
                 <div className="space-y-2">
+                  <Button
+                    size="sm"
+                    variant={server.status === "ACTIVE" ? "danger" : "primary"}
+                    className={`w-full text-xs h-8 sm:h-9 ${
+                      server.status === "ACTIVE"
+                        ? "bg-red-600 hover:bg-red-700 text-white border-red-600 hover:border-red-700"
+                        : "bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
+                    }`}
+                    onClick={() => toggleStatusMutation.mutate(server.id)}
+                    disabled={toggleStatusMutation.isPending}
+                    title={
+                      server.status === "ACTIVE"
+                        ? "Disable this server (clients will be hidden)"
+                        : "Enable this server (clients will be visible)"
+                    }
+                  >
+                    {toggleStatusMutation.isPending ? (
+                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
+                    ) : server.status === "ACTIVE" ? (
+                      <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    ) : (
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {server.status === "ACTIVE"
+                        ? "Disable Server"
+                        : "Enable Server"}
+                    </span>
+                    <span className="sm:hidden">
+                      {server.status === "ACTIVE" ? "Disable" : "Enable"}
+                    </span>
+                  </Button>
+
                   <Button
                     size="sm"
                     variant="outline"

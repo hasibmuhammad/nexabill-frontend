@@ -192,3 +192,9 @@ export const checkAllServerStatuses = async () => {
   const response = await api.post("/mikrotik/check-all-statuses");
   return response.data?.data;
 };
+
+// Toggle server enable/disable status
+export const toggleServerStatus = async (serverId: string) => {
+  const response = await api.patch(`/mikrotik/${serverId}/toggle-status`);
+  return response.data?.data;
+};
