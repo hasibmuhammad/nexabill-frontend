@@ -29,7 +29,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "sticky top-0 z-40 bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700",
+        "sticky top-0 z-50 bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700",
         className
       )}
     >

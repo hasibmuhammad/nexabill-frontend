@@ -52,7 +52,11 @@ export function ClientFilters({
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: districts = [] } = useQuery({
+  const {
+    data: districts = [],
+    isLoading: districtsLoading,
+    error: districtsError,
+  } = useQuery({
     queryKey: ["districts"],
     queryFn: getActiveDistricts,
     staleTime: 5 * 60 * 1000,
@@ -139,81 +143,58 @@ export function ClientFilters({
   return (
     <div className="space-y-4">
       {/* Filter Controls */}
-      <div className="flex items-center space-x-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center space-x-2 transition-all duration-200 ${
-            activeFiltersCount > 0
-              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-              : "hover:bg-slate-50 dark:hover:bg-slate-700"
-          }`}
-        >
-          <Filter className="h-4 w-4" />
-          <span>Filters</span>
-          {activeFiltersCount > 0 && (
-            <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
-              {activeFiltersCount}
-            </span>
-          )}
-        </Button>
-
-        {activeFiltersCount > 0 && (
+      <div className="relative">
+        <div className="flex items-center space-x-3">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={clearAllFilters}
-            className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center space-x-2 transition-all duration-200 ${
+              activeFiltersCount > 0
+                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                : "hover:bg-slate-50 dark:hover:bg-slate-700"
+            }`}
           >
-            Clear all
-          </Button>
-        )}
-      </div>
-
-      {/* Active Filter Chips */}
-      {activeFilters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-            Active filters:
-          </span>
-          {activeFilters.map((filter) => (
-            <div
-              key={filter.key}
-              className="inline-flex items-center space-x-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-3 py-1.5 rounded-full text-sm font-medium"
-            >
-              <span className="text-blue-600 dark:text-blue-400">
-                {filter.label}:
+            <Filter className="h-4 w-4" />
+            <span>Filters</span>
+            {activeFiltersCount > 0 && (
+              <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                {activeFiltersCount}
               </span>
-              <span>{filter.value}</span>
-              <button
-                onClick={() => clearFilter(filter.key as keyof FilterState)}
-                className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+            )}
+          </Button>
 
-      {/* Filter Dropdown */}
-      {showFilters && (
-        <div className="relative" ref={filterRef}>
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-6">
-            <div className="flex items-center justify-between mb-6">
+          {activeFiltersCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAllFilters}
+              className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-sm"
+            >
+              Clear all
+            </Button>
+          )}
+        </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div
+            ref={filterRef}
+            className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-40 p-6 min-w-[500px]"
+          >
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                 Filter Clients
               </h3>
               <button
                 onClick={() => setShowFilters(false)}
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Status Filter */}
               <Select
                 label="Status"
@@ -242,10 +223,12 @@ export function ClientFilters({
                 placeholder="All Servers"
                 options={[
                   { value: "", label: "All Servers" },
-                  ...mikrotikServers.map((server: any) => ({
-                    value: server.id,
-                    label: server.name,
-                  })),
+                  ...(Array.isArray(mikrotikServers)
+                    ? mikrotikServers.map((server: any) => ({
+                        value: server.id,
+                        label: server.name,
+                      }))
+                    : []),
                 ]}
                 selectClassName="h-11"
               />
@@ -257,10 +240,13 @@ export function ClientFilters({
                 onChange={(value) => onFilterChange("zone", value)}
                 placeholder="All Zones"
                 options={[
-                  ...(zonesData?.data || []).map((zone: any) => ({
-                    value: zone.id,
-                    label: zone.name,
-                  })),
+                  { value: "", label: "All Zones" },
+                  ...(Array.isArray(zonesData?.data)
+                    ? zonesData.data.map((zone: any) => ({
+                        value: zone.id,
+                        label: zone.name,
+                      }))
+                    : []),
                 ]}
                 selectClassName="h-11"
               />
@@ -272,10 +258,13 @@ export function ClientFilters({
                 onChange={(value) => onFilterChange("district", value)}
                 placeholder="All Districts"
                 options={[
-                  ...districts.map((district: any) => ({
-                    value: district.id,
-                    label: district.name,
-                  })),
+                  { value: "", label: "All Districts" },
+                  ...(Array.isArray(districts)
+                    ? districts.map((district: any) => ({
+                        value: district.id,
+                        label: district.name,
+                      }))
+                    : []),
                 ]}
                 selectClassName="h-11"
               />
@@ -310,6 +299,32 @@ export function ClientFilters({
               </div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Active Filter Chips */}
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+            Active filters:
+          </span>
+          {activeFilters.map((filter) => (
+            <div
+              key={filter.key}
+              className="inline-flex items-center space-x-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-3 py-1.5 rounded-full text-sm font-medium"
+            >
+              <span className="text-blue-600 dark:text-blue-400">
+                {filter.label}:
+              </span>
+              <span>{filter.value}</span>
+              <button
+                onClick={() => clearFilter(filter.key as keyof FilterState)}
+                className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

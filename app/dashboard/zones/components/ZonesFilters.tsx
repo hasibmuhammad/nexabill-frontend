@@ -54,7 +54,7 @@ export function ZonesFilters({
       {showFilters && (
         <div
           ref={filterRef as any}
-          className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-30 p-6 min-w-[500px]"
+          className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-40 p-6 min-w-[500px]"
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
