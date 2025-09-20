@@ -34,19 +34,19 @@ export function PageHeader({
       )}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 space-y-4 sm:space-y-0">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
               {title}
             </h1>
             {subtitle && (
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1 truncate">
                 {subtitle}
               </p>
             )}
           </div>
           {actions && actions.length > 0 && (
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 sm:flex-shrink-0">
               {actions.map((action, index) => {
                 const Icon = action.icon;
                 return (
@@ -55,10 +55,14 @@ export function PageHeader({
                     variant={action.variant || "outline"}
                     onClick={action.onClick}
                     disabled={action.disabled}
-                    className={cn(action.loading && "animate-pulse")}
+                    className={cn(
+                      "w-full sm:w-auto",
+                      action.loading && "animate-pulse"
+                    )}
+                    size="sm"
                   >
                     {Icon && <Icon className="h-4 w-4 mr-2" />}
-                    {action.label}
+                    <span className="truncate">{action.label}</span>
                   </Button>
                 );
               })}

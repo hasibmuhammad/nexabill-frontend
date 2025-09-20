@@ -21,8 +21,6 @@ export function ServerModal({
   server,
   onSubmit,
   isLoading = false,
-  onTestConnection,
-  isTestingConnection = false,
 }: ServerModalProps) {
   const formRef = useRef<ServerFormRef>(null);
   const isEdit = !!server;
@@ -54,8 +52,6 @@ export function ServerModal({
         server={server}
         onSubmit={onSubmit}
         isLoading={isLoading}
-        onTestConnection={onTestConnection}
-        isTestingConnection={isTestingConnection}
       />
     </Modal>
   );

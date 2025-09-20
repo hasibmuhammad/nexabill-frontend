@@ -1,20 +1,16 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Textarea } from "@/components/ui/textarea";
 import { type MikrotikServer } from "@/lib/api-mikrotik";
 import { forwardRef, useImperativeHandle, useState } from "react";
-import { toast } from "react-hot-toast";
 
 interface ServerFormProps {
   server?: MikrotikServer | null;
   onSubmit: (data: any) => void;
   isLoading?: boolean;
-  onTestConnection?: () => void;
-  isTestingConnection?: boolean;
 }
 
 export interface ServerFormRef {
@@ -22,16 +18,7 @@ export interface ServerFormRef {
 }
 
 export const ServerForm = forwardRef<ServerFormRef, ServerFormProps>(
-  (
-    {
-      server,
-      onSubmit,
-      isLoading = false,
-      onTestConnection,
-      isTestingConnection = false,
-    },
-    ref
-  ) => {
+  ({ server, onSubmit, isLoading = false }, ref) => {
     const [formData, setFormData] = useState({
       name: server?.name || "",
       host: server?.host || "",
@@ -137,32 +124,6 @@ export const ServerForm = forwardRef<ServerFormRef, ServerFormProps>(
     useImperativeHandle(ref, () => ({
       submit: validateAndSubmit,
     }));
-
-    const handleTestConnection = () => {
-      // For test connection, we need password (use existing password for updates if not provided)
-      const passwordToUse = formData.password || server?.password || "";
-
-      if (
-        !formData.host ||
-        !formData.port ||
-        !formData.username ||
-        !passwordToUse
-      ) {
-        toast.error("Please fill in all required fields first");
-        return;
-      }
-
-      // Parse port and validate
-      const portNum = parseInt(formData.port);
-      if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-        toast.error("Port must be a valid number between 1 and 65535");
-        return;
-      }
-
-      if (onTestConnection) {
-        onTestConnection();
-      }
-    };
 
     return (
       <div className="space-y-4">
@@ -320,19 +281,6 @@ export const ServerForm = forwardRef<ServerFormRef, ServerFormProps>(
               </div>
             </div>
           )}
-          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
-            {onTestConnection && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleTestConnection}
-                disabled={isTestingConnection}
-                className="w-full sm:w-auto"
-              >
-                {isTestingConnection ? "Testing..." : "Test Connection"}
-              </Button>
-            )}
-          </div>
         </form>
       </div>
     );

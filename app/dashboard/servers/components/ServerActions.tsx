@@ -2,26 +2,17 @@
 
 import { Button } from "@/components/ui/button";
 import { type MikrotikServer } from "@/lib/api-mikrotik";
-import {
-  Activity,
-  AlertCircle,
-  CheckCircle,
-  Download,
-  RefreshCw,
-  Settings,
-} from "lucide-react";
+import { Edit3, Power, PowerOff, RefreshCw, Users } from "lucide-react";
 import { getEffectiveConnectionStatus } from "./ServerStatusIndicator";
 
 interface ServerActionsProps {
   server: MikrotikServer;
   onRefreshStatus: (serverId: string) => void;
-  onTestConnection: (serverId: string) => void;
   onImportUsers: (serverId: string) => void;
   onSyncClients: (serverId: string) => void;
   onToggleStatus: (serverId: string) => void;
   onEdit: (server: MikrotikServer) => void;
   refreshingStatus?: string | null;
-  isTestConnectionPending?: boolean;
   isImportUsersPending?: boolean;
   isSyncClientsPending?: boolean;
   isToggleStatusPending?: boolean;
@@ -30,13 +21,11 @@ interface ServerActionsProps {
 export function ServerActions({
   server,
   onRefreshStatus,
-  onTestConnection,
   onImportUsers,
   onSyncClients,
   onToggleStatus,
   onEdit,
   refreshingStatus,
-  isTestConnectionPending = false,
   isImportUsersPending = false,
   isSyncClientsPending = false,
   isToggleStatusPending = false,
@@ -45,108 +34,113 @@ export function ServerActions({
     getEffectiveConnectionStatus(server.status, server.connectionStatus) ===
     "CONNECTED";
 
+  const isRefreshing = refreshingStatus === server.id;
+  const isServerActive = server.status === "ACTIVE";
+
   return (
-    <div className="space-y-2 mt-auto">
+    <div className="mt-auto space-y-2">
+      {/* Primary Actions */}
       <div className="grid grid-cols-2 gap-2">
         <Button
           size="sm"
           variant="outline"
-          className="text-xs h-8 sm:h-9"
-          onClick={() => onRefreshStatus(server.id)}
-          disabled={refreshingStatus === server.id}
-        >
-          <RefreshCw
-            className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 ${
-              refreshingStatus === server.id ? "animate-spin" : ""
-            }`}
-          />
-          <span className="hidden sm:inline">Check Status</span>
-          <span className="sm:hidden">Check</span>
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-xs h-8 sm:h-9"
-          onClick={() => onTestConnection(server.id)}
-          disabled={isTestConnectionPending}
-          title="Test connection to this server (may take up to 15 seconds)"
-        >
-          <Activity className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-          <span className="hidden sm:inline">Test</span>
-          <span className="sm:hidden">Test</span>
-        </Button>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-xs h-8 sm:h-9"
+          className="text-xs h-9"
           onClick={() => onImportUsers(server.id)}
           disabled={isImportUsersPending || !isConnected}
+          title={
+            !isConnected
+              ? "Server must be connected to import users"
+              : "Import users from Mikrotik router"
+          }
         >
-          <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-          <span className="hidden sm:inline">Import</span>
-          <span className="sm:hidden">Import</span>
+          <Users className="h-4 w-4 mr-1" />
+          {isImportUsersPending ? (
+            <RefreshCw className="h-3 w-3 animate-spin" />
+          ) : (
+            "Import Users"
+          )}
         </Button>
         <Button
           size="sm"
           variant="outline"
-          className="text-xs h-8 sm:h-9"
+          className="text-xs h-9"
           onClick={() => onSyncClients(server.id)}
           disabled={isSyncClientsPending || !isConnected}
+          title={
+            !isConnected
+              ? "Server must be connected to sync clients"
+              : "Sync client data with Mikrotik router"
+          }
         >
-          <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-          <span className="hidden sm:inline">Sync</span>
-          <span className="sm:hidden">Sync</span>
+          <RefreshCw
+            className={`h-4 w-4 mr-1 ${
+              isSyncClientsPending ? "animate-spin" : ""
+            }`}
+          />
+          {isSyncClientsPending ? "Syncing..." : "Sync Clients"}
         </Button>
       </div>
+
+      {/* Secondary Actions */}
       <div className="space-y-2">
         <Button
           size="sm"
-          variant={server.status === "ACTIVE" ? "danger" : "primary"}
-          className={`w-full text-xs h-8 sm:h-9 ${
-            server.status === "ACTIVE"
-              ? "bg-red-600 hover:bg-red-700 text-white border-red-600 hover:border-red-700"
+          variant="outline"
+          className="w-full text-xs h-9"
+          onClick={() => onRefreshStatus(server.id)}
+          disabled={isRefreshing}
+          title="Check server connection status"
+        >
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+          />
+          {isRefreshing ? "Checking..." : "Check Connection"}
+        </Button>
+
+        <Button
+          size="sm"
+          variant={isServerActive ? "outline" : "primary"}
+          className={`w-full text-xs h-9 ${
+            isServerActive
+              ? "bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 border-red-200 dark:border-red-700 text-red-700 dark:text-red-300"
               : "bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
           }`}
           onClick={() => onToggleStatus(server.id)}
           disabled={isToggleStatusPending}
           title={
-            server.status === "ACTIVE"
-              ? "Disable this server (clients will be hidden)"
-              : "Enable this server (clients will be visible)"
+            isServerActive
+              ? "Disable server - clients will be hidden from billing"
+              : "Enable server - clients will be visible in billing"
           }
         >
           {isToggleStatusPending ? (
-            <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
-          ) : server.status === "ACTIVE" ? (
-            <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+          ) : isServerActive ? (
+            <PowerOff className="h-4 w-4 mr-2" />
           ) : (
-            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+            <Power className="h-4 w-4 mr-2" />
           )}
-          <span className="hidden sm:inline">
-            {server.status === "ACTIVE" ? "Disable Server" : "Enable Server"}
-          </span>
-          <span className="sm:hidden">
-            {server.status === "ACTIVE" ? "Disable" : "Enable"}
-          </span>
+          {isToggleStatusPending
+            ? "Updating..."
+            : isServerActive
+            ? "Disable Server"
+            : "Enable Server"}
         </Button>
 
         <Button
           size="sm"
           variant="outline"
-          className="w-full text-xs h-8 sm:h-9 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/30 border-blue-300 dark:border-blue-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-500"
+          className="w-full text-xs h-9"
           onClick={() => onEdit(server)}
           disabled={!isConnected}
           title={
             !isConnected
-              ? "Cannot edit disconnected server - check connection first"
-              : "Edit this server"
+              ? "Server must be connected to edit settings"
+              : "Edit server configuration"
           }
         >
-          <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-          <span className="hidden sm:inline">Edit</span>
-          <span className="sm:hidden">Edit</span>
+          <Edit3 className="h-4 w-4 mr-2" />
+          Edit Server
         </Button>
       </div>
     </div>

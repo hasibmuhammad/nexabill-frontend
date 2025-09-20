@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { type MikrotikServer } from "@/lib/api-mikrotik";
 import { Plus, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "react-hot-toast";
 import { ConnectionHelp } from "./components/ConnectionHelp";
 import { EmptyState } from "./components/EmptyState";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -22,7 +21,6 @@ export default function ServersPage() {
   const [selectedServer, setSelectedServer] = useState<MikrotikServer | null>(
     null
   );
-  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [refreshingStatus, setRefreshingStatus] = useState<string | null>(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [filteredServers, setFilteredServers] = useState<MikrotikServer[]>([]);
@@ -31,7 +29,6 @@ export default function ServersPage() {
   const {
     addServerMutation,
     editServerMutation,
-    testConnectionMutation,
     importUsersMutation,
     syncClientsMutation,
     refreshStatusMutation,
@@ -62,7 +59,6 @@ export default function ServersPage() {
   const closeForm = () => {
     setShowAddForm(false);
     setShowEditForm(false);
-    setIsTestingConnection(false);
     setSelectedServer(null);
     // Reset form if needed
     const form = document.querySelector("form") as HTMLFormElement;
@@ -111,14 +107,6 @@ export default function ServersPage() {
     });
   };
 
-  const handleTestConnection = () => {
-    setIsTestingConnection(true);
-    setTimeout(() => {
-      setIsTestingConnection(false);
-      toast.success("Form validation successful! You can now add the server.");
-    }, 1000);
-  };
-
   if (isLoading) {
     return (
       <LoadingSpinner message="Checking server connections..." fullScreen />
@@ -161,8 +149,6 @@ export default function ServersPage() {
           onClose={closeForm}
           onSubmit={handleAddServer}
           isLoading={addServerMutation.isPending}
-          onTestConnection={handleTestConnection}
-          isTestingConnection={isTestingConnection}
         />
 
         {/* Edit Server Modal */}
@@ -194,9 +180,6 @@ export default function ServersPage() {
         <ServerGrid
           servers={filteredServers}
           onRefreshStatus={handleRefreshStatus}
-          onTestConnection={(serverId) =>
-            testConnectionMutation.mutate(serverId)
-          }
           onImportUsers={(serverId) => importUsersMutation.mutate(serverId)}
           onSyncClients={(serverId) => syncClientsMutation.mutate(serverId)}
           onToggleStatus={(serverId) => toggleStatusMutation.mutate(serverId)}
@@ -205,7 +188,6 @@ export default function ServersPage() {
             setShowEditForm(true);
           }}
           refreshingStatus={refreshingStatus}
-          isTestConnectionPending={testConnectionMutation.isPending}
           isImportUsersPending={importUsersMutation.isPending}
           isSyncClientsPending={syncClientsMutation.isPending}
           isToggleStatusPending={toggleStatusMutation.isPending}

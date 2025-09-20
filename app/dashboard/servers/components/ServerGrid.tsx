@@ -7,13 +7,11 @@ import { ServerCard } from "./ServerCard";
 interface ServerGridProps {
   servers: MikrotikServer[];
   onRefreshStatus: (serverId: string) => void;
-  onTestConnection: (serverId: string) => void;
   onImportUsers: (serverId: string) => void;
   onSyncClients: (serverId: string) => void;
   onToggleStatus: (serverId: string) => void;
   onEdit: (server: MikrotikServer) => void;
   refreshingStatus?: string | null;
-  isTestConnectionPending?: boolean;
   isImportUsersPending?: boolean;
   isSyncClientsPending?: boolean;
   isToggleStatusPending?: boolean;
@@ -23,13 +21,11 @@ interface ServerGridProps {
 export function ServerGrid({
   servers,
   onRefreshStatus,
-  onTestConnection,
   onImportUsers,
   onSyncClients,
   onToggleStatus,
   onEdit,
   refreshingStatus,
-  isTestConnectionPending = false,
   isImportUsersPending = false,
   isSyncClientsPending = false,
   isToggleStatusPending = false,
@@ -53,13 +49,11 @@ export function ServerGrid({
           key={server.id}
           server={server}
           onRefreshStatus={onRefreshStatus}
-          onTestConnection={onTestConnection}
           onImportUsers={onImportUsers}
           onSyncClients={onSyncClients}
           onToggleStatus={onToggleStatus}
           onEdit={onEdit}
           refreshingStatus={refreshingStatus}
-          isTestConnectionPending={isTestConnectionPending}
           isImportUsersPending={isImportUsersPending}
           isSyncClientsPending={isSyncClientsPending}
           isToggleStatusPending={isToggleStatusPending}
