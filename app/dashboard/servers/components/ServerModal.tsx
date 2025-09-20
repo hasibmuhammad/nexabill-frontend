@@ -41,7 +41,7 @@ export function ServerModal({
       size="lg"
       footer={{
         cancelText: "Cancel",
-        confirmText,
+        confirmText: isLoading ? "Creating Server..." : confirmText,
         onCancel: onClose,
         onConfirm: handleConfirm,
         confirmVariant: "primary",

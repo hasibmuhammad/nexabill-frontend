@@ -16,7 +16,10 @@ export function useServerMutations() {
   const queryClient = useQueryClient();
 
   const addServerMutation = useMutation({
-    mutationFn: addMikrotikServer,
+    mutationFn: (data: any) => {
+      const { importUsers, ...serverData } = data;
+      return addMikrotikServer(serverData, importUsers);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["mikrotik-servers-list"] });
       queryClient.invalidateQueries({
@@ -68,7 +71,7 @@ export function useServerMutations() {
         // Provide more user-friendly error messages for connection issues
         if (errorMessage.includes("timeout")) {
           errorMessage =
-            "Connection timeout - the router is not responding within 15 seconds. This may indicate the router is offline, unreachable, or there are network connectivity issues. Try checking if the router is online and accessible from this network.";
+            "Connection timeout - the router is not responding within the expected time. This may indicate the router is offline, unreachable, or there are network connectivity issues. Try checking if the router is online and accessible from this network.";
         } else if (errorMessage.includes("Connection refused")) {
           errorMessage =
             "Connection refused - the router is not accepting connections on this port. Check if the API service is enabled and the port number is correct.";
@@ -136,7 +139,7 @@ export function useServerMutations() {
         // Provide more user-friendly error messages for connection issues
         if (errorMessage.includes("timeout")) {
           errorMessage =
-            "Connection timeout - the router is not responding within 15 seconds. This may indicate the router is offline, or there are network connectivity issues. Try checking if the router is online and accessible from this network.";
+            "Connection timeout - the router is not responding within the expected time. This may indicate the router is offline, or there are network connectivity issues. Try checking if the router is online and accessible from this network.";
         } else if (errorMessage.includes("Connection refused")) {
           errorMessage =
             "Connection refused - the router is not accepting connections on this port. Check if the API service is enabled and the port number is correct.";
@@ -197,7 +200,7 @@ export function useServerMutations() {
       // Provide more user-friendly error messages based on error type
       if (errorMessage.includes("timeout")) {
         errorMessage =
-          "Connection timeout - the router is not responding within 15 seconds. This may indicate the router is offline, unreachable, or there are network connectivity issues. Try checking if the router is online and accessible from this network.";
+          "Connection timeout - the router is not responding within the expected time. This may indicate the router is offline, unreachable, or there are network connectivity issues. Try checking if the router is online and accessible from this network.";
       } else if (errorMessage.includes("Connection refused")) {
         errorMessage =
           "Connection refused - the router is not accepting connections on this port. Check if the API service is enabled and the port number is correct.";

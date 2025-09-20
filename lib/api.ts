@@ -30,7 +30,7 @@ api.interceptors.response.use(
 // Create a specific API instance for Mikrotik operations with extended timeout
 export const mikrotikApi: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1",
-  timeout: 15000, // 15 seconds - aligned with your environment variable
+  timeout: 60000, // 60 seconds - extended for Mikrotik operations that may take longer
 });
 
 // Add auth token to Mikrotik API requests

@@ -97,7 +97,8 @@ export const testServerConnection = async (
 
 // Add new Mikrotik server
 export const addMikrotikServer = async (
-  serverData: CreateMikrotikServerDto
+  serverData: CreateMikrotikServerDto,
+  importUsers: boolean = true
 ): Promise<{
   server: MikrotikServer;
   importResult?: SyncResult;
@@ -106,7 +107,13 @@ export const addMikrotikServer = async (
     error: string;
   };
 }> => {
-  const response = await api.post("/mikrotik", serverData);
+  // Use extended timeout for server creation since it may include user import
+  const response = await api.post("/mikrotik", serverData, {
+    timeout: importUsers ? 60000 : 15000, // 60 seconds if importing users, 15 seconds otherwise
+    params: {
+      importUsers: importUsers.toString(),
+    },
+  });
   return response.data?.data;
 };
 
@@ -150,7 +157,13 @@ export const deleteMikrotikServer = async (id: string): Promise<void> => {
 export const importUsersFromMikrotik = async (
   serverId: string
 ): Promise<SyncResult> => {
-  const response = await api.post(`/mikrotik/${serverId}/import-users`);
+  const response = await api.post(
+    `/mikrotik/${serverId}/import-users`,
+    {},
+    {
+      timeout: 60000, // 60 seconds for user import operations
+    }
+  );
   return response.data?.data;
 };
 
@@ -158,7 +171,13 @@ export const importUsersFromMikrotik = async (
 export const syncClientsWithMikrotik = async (
   serverId: string
 ): Promise<SyncResult> => {
-  const response = await api.post(`/mikrotik/${serverId}/sync-clients`);
+  const response = await api.post(
+    `/mikrotik/${serverId}/sync-clients`,
+    {},
+    {
+      timeout: 60000, // 60 seconds for sync operations
+    }
+  );
   return response.data?.data;
 };
 
