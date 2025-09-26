@@ -20,6 +20,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
+import { EmployeeSearch } from "./components/EmployeeSearch";
+import { EmployeesFilters } from "./components/EmployeesFilters";
 
 type Employee = {
   id: string;
@@ -40,8 +42,10 @@ export default function EmployeesPage() {
     initialSortBy: "name",
     initialSortOrder: "asc",
   });
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [designationFilter, setDesignationFilter] = useState<string>("");
+  const [filters, setFilters] = useState<{
+    status: string;
+    designation: string;
+  }>({ status: "", designation: "" });
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -59,11 +63,11 @@ export default function EmployeesPage() {
       dataTable.pageIndex,
       dataTable.pageSize,
       debouncedSearch,
-      statusFilter,
+      filters.status,
     ],
     queryFn: async () => {
-      const isActiveParam = statusFilter
-        ? statusFilter === "ACTIVE"
+      const isActiveParam = filters.status
+        ? filters.status === "ACTIVE"
         : undefined;
       const res = await getEmployees({
         page: dataTable.pageIndex + 1,
@@ -77,7 +81,7 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     dataTable.setPageIndex(0);
-  }, [debouncedSearch, statusFilter, designationFilter]);
+  }, [debouncedSearch, filters.status, filters.designation]);
 
   const serverEmployees: Employee[] = useMemo(() => {
     const list = (employeesResponse?.data || []) as ApiEmployee[];
@@ -93,9 +97,9 @@ export default function EmployeesPage() {
   }, [employeesResponse]);
 
   const employees = useMemo(() => {
-    if (!designationFilter) return serverEmployees;
-    return serverEmployees.filter((e) => e.designation === designationFilter);
-  }, [serverEmployees, designationFilter]);
+    if (!filters.designation) return serverEmployees;
+    return serverEmployees.filter((e) => e.designation === filters.designation);
+  }, [serverEmployees, filters.designation]);
 
   const totalCount = employeesResponse?.meta?.total || employees.length || 0;
   const totalPages = employeesResponse?.meta?.totalPages || 1;
@@ -297,53 +301,23 @@ export default function EmployeesPage() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search and Filters - Side by Side */}
+        {/* Search and Filters - Side by Side (standardized) */}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg mb-6 p-6">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            {/* Left Side - Filters */}
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Select
-                label="Status"
-                options={[
-                  { value: "", label: "All" },
-                  { value: "ACTIVE", label: "Active" },
-                  { value: "INACTIVE", label: "Inactive" },
-                ]}
-                value={statusFilter}
-                onChange={setStatusFilter}
+            <div className="flex-1">
+              <EmployeesFilters
+                filters={filters}
+                onFilterChange={(key, value) =>
+                  setFilters((prev) => ({ ...prev, [key]: value }))
+                }
+                isLoading={isLoading}
               />
-              <Select
-                label="Designation"
-                options={[
-                  { value: "", label: "All" },
-                  { value: "ENGINEER", label: "Engineer" },
-                  { value: "TECHNICIAN", label: "Technician" },
-                  { value: "BILL_COLLECTOR", label: "Bill Collector" },
-                ]}
-                value={designationFilter}
-                onChange={setDesignationFilter}
-              />
-              <div className="hidden sm:block" />
             </div>
-
-            {/* Right Side - Search */}
-            <div className="lg:ml-auto w-full lg:w-auto">
-              <div className="flex items-end gap-3">
-                <div className="w-64">
-                  <Input
-                    label="Search"
-                    value={dataTable.search}
-                    onChange={(e) => dataTable.setSearch(e.target.value)}
-                    placeholder="Search name, email or phone"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => dataTable.setSearch("")}
-                >
-                  Clear
-                </Button>
-              </div>
+            <div className="lg:ml-auto">
+              <EmployeeSearch
+                searchValue={dataTable.search}
+                onSearchChange={dataTable.setSearch}
+              />
             </div>
           </div>
         </div>
@@ -511,6 +485,7 @@ function EmployeeForm({
           error={errors.name}
         />
         <Input
+          type="number"
           required
           label="Phone"
           value={formState.phone}
