@@ -3,7 +3,7 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { type MikrotikServer } from "@/lib/api-mikrotik";
 import { Plus, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ConnectionHelp } from "./components/ConnectionHelp";
 import { EmptyState } from "./components/EmptyState";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -23,7 +23,10 @@ export default function ServersPage() {
   );
   const [refreshingStatus, setRefreshingStatus] = useState<string | null>(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
-  const [filteredServers, setFilteredServers] = useState<MikrotikServer[]>([]);
+  const [filterState, setFilterState] = useState<{
+    status: string;
+    search: string;
+  }>({ status: "ALL", search: "" });
 
   const { servers, isLoading, error } = useServerQueries();
   const {
@@ -36,10 +39,36 @@ export default function ServersPage() {
     bulkRefreshMutation,
   } = useServerMutations();
 
-  // Initialize filtered servers when servers change
-  useEffect(() => {
-    setFilteredServers(servers);
-  }, [servers]);
+  // Memoize filtered servers to prevent infinite re-renders
+  const filteredServers = useMemo(() => {
+    let filtered = servers || [];
+
+    // Apply status filter
+    if (filterState.status !== "ALL") {
+      filtered = filtered.filter((server) => {
+        if (filterState.status === "ACTIVE") {
+          return server.status === "ACTIVE";
+        } else if (filterState.status === "INACTIVE") {
+          return server.status === "INACTIVE";
+        }
+        return true;
+      });
+    }
+
+    // Apply search filter
+    if (filterState.search.trim()) {
+      const searchTerm = filterState.search.toLowerCase();
+      filtered = filtered.filter(
+        (server) =>
+          server.name.toLowerCase().includes(searchTerm) ||
+          server.host.toLowerCase().includes(searchTerm) ||
+          server.location?.toLowerCase().includes(searchTerm) ||
+          server.description?.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    return filtered;
+  }, [servers, filterState.status, filterState.search]);
 
   // Handle escape key to close forms
   useEffect(() => {
@@ -83,6 +112,14 @@ export default function ServersPage() {
 
     return () => clearInterval(interval);
   }, [bulkRefreshMutation, isLoading, autoRefreshEnabled]);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback(
+    (newFilters: { status: string; search: string }) => {
+      setFilterState(newFilters);
+    },
+    []
+  );
 
   const handleRefreshStatus = (serverId: string) => {
     setRefreshingStatus(serverId);
@@ -173,7 +210,7 @@ export default function ServersPage() {
         {/* Filters */}
         <ServerFilters
           servers={servers}
-          onFilteredServers={setFilteredServers}
+          onFilteredServers={handleFilterChange}
         />
 
         {/* Servers Grid */}

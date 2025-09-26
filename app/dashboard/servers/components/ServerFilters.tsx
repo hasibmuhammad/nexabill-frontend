@@ -6,11 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { type MikrotikServer } from "@/lib/api-mikrotik";
 import { Search, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface ServerFiltersProps {
   servers: MikrotikServer[];
-  onFilteredServers: (servers: MikrotikServer[]) => void;
+  onFilteredServers: (filters: { status: string; search: string }) => void;
 }
 
 export function ServerFilters({
@@ -18,64 +18,27 @@ export function ServerFilters({
   onFilteredServers,
 }: ServerFiltersProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+  // Notify parent of filter changes
+  useEffect(() => {
+    onFilteredServers({ status: statusFilter, search: searchTerm });
+  }, [searchTerm, statusFilter, onFilteredServers]);
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
-    applyFilters(value, statusFilter);
   };
 
   const handleStatusFilterChange = (value: string) => {
     setStatusFilter(value);
-    applyFilters(searchTerm, value);
-  };
-
-  const applyFilters = (search: string, status: string) => {
-    let filtered = servers;
-
-    // Apply search filter
-    if (search.trim()) {
-      filtered = filtered.filter(
-        (server) =>
-          server.name.toLowerCase().includes(search.toLowerCase()) ||
-          server.host.toLowerCase().includes(search.toLowerCase()) ||
-          server.location?.toLowerCase().includes(search.toLowerCase()) ||
-          server.description?.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-
-    // Apply status filter
-    if (status !== "all") {
-      filtered = filtered.filter((server) => {
-        if (status === "connected") {
-          return (
-            server.status === "ACTIVE" &&
-            server.connectionStatus === "CONNECTED"
-          );
-        } else if (status === "disconnected") {
-          return (
-            server.connectionStatus === "DISCONNECTED" ||
-            server.status === "INACTIVE"
-          );
-        } else if (status === "active") {
-          return server.status === "ACTIVE";
-        } else if (status === "inactive") {
-          return server.status === "INACTIVE";
-        }
-        return true;
-      });
-    }
-
-    onFilteredServers(filtered);
   };
 
   const clearFilters = () => {
     setSearchTerm("");
-    setStatusFilter("all");
-    onFilteredServers(servers);
+    setStatusFilter("ALL");
   };
 
-  const hasActiveFilters = searchTerm.trim() || statusFilter !== "all";
+  const hasActiveFilters = searchTerm.trim() || statusFilter !== "ALL";
 
   return (
     <Card className="p-4 mb-6">
@@ -96,11 +59,9 @@ export function ServerFilters({
             value={statusFilter}
             onChange={handleStatusFilterChange}
             options={[
-              { value: "all", label: "All Servers" },
-              { value: "connected", label: "Connected" },
-              { value: "disconnected", label: "Disconnected" },
-              { value: "active", label: "Active" },
-              { value: "inactive", label: "Inactive" },
+              { value: "ALL", label: "All Servers" },
+              { value: "ACTIVE", label: "Active" },
+              { value: "INACTIVE", label: "Inactive" },
             ]}
             selectClassName="min-w-[140px]"
           />

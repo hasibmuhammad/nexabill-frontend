@@ -1,17 +1,15 @@
 "use client";
 
+import ClientTabbedModal from "@/components/modals/ClientTabbedModal";
 import { Button } from "@/components/ui/button";
 import { ColumnDef, DataTable } from "@/components/ui/data-table";
-import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
-import { Select } from "@/components/ui/select";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDebounce } from "@/hooks/use-debounce";
 import { api, getRealTimeConnectionStatus } from "@/lib/api";
-import { getPppoeProfiles, ServiceProfile } from "@/lib/packages";
+import { getPppoeProfiles } from "@/lib/packages";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Download, Package, Plus, Wifi } from "lucide-react";
+import { Download, Plus, Wifi } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useClientColumns } from "./components/ClientColumns";
@@ -96,16 +94,6 @@ interface RealTimeStatus {
 
 export default function ClientsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newClient, setNewClient] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    mikrotikUsername: "",
-    serviceProfile: "",
-    monthlyFee: "",
-    selectedPackageId: "",
-  });
   const queryClient = useQueryClient();
 
   // DataTable hook
@@ -303,21 +291,11 @@ export default function ClientsPage() {
   });
 
   // Handle add client
-  const handleAddClient = async () => {
+  const handleAddClient = async (clientData: any) => {
     try {
       // TODO: Implement actual API call to add client
-      toast.success(`Client "${newClient.name}" added successfully!`);
+      toast.success(`Client "${clientData.name}" added successfully!`);
       setShowAddForm(false);
-      setNewClient({
-        name: "",
-        email: "",
-        phone: "",
-        address: "",
-        mikrotikUsername: "",
-        serviceProfile: "",
-        monthlyFee: "",
-        selectedPackageId: "",
-      });
       // Refresh the client list
       refetch();
     } catch (error) {
@@ -387,8 +365,27 @@ export default function ClientsPage() {
   // Calculate total offline clients from real-time status
   const totalOfflineClients = useMemo(() => {
     const totalClients = systemTotal || 0;
-    return totalClients - totalOnlineClients;
+    // Handle cases where online sessions exceed database clients
+    // This can happen due to multiple sessions per client or orphaned sessions
+    const offlineCount = Math.max(0, totalClients - totalOnlineClients);
+    return offlineCount;
   }, [systemTotal, totalOnlineClients]);
+
+  // Check for data discrepancy between database and Mikrotik sessions
+  const hasDataDiscrepancy = useMemo(() => {
+    const totalClients = systemTotal || 0;
+    return totalOnlineClients > totalClients;
+  }, [systemTotal, totalOnlineClients]);
+
+  const discrepancyInfo = useMemo(() => {
+    if (!hasDataDiscrepancy) return null;
+    const totalClients = systemTotal || 0;
+    const extraSessions = totalOnlineClients - totalClients;
+    return {
+      extraSessions,
+      message: `${extraSessions} more active sessions than database clients. This may indicate multiple sessions per client or orphaned sessions.`,
+    };
+  }, [hasDataDiscrepancy, systemTotal, totalOnlineClients]);
 
   if (isLoading || realTimeLoading) {
     return (
@@ -461,6 +458,40 @@ export default function ClientsPage() {
           offlineClients={totalOfflineClients}
         />
 
+        {/* Data Discrepancy Warning */}
+        {hasDataDiscrepancy && discrepancyInfo && (
+          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-amber-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Data Discrepancy Detected
+                </h3>
+                <div className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+                  <p>{discrepancyInfo.message}</p>
+                  <p className="mt-1">
+                    This is normal and can occur when clients have multiple
+                    active sessions or when there are orphaned sessions on the
+                    routers.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Search and Filters - Side by Side */}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg mb-6 p-6">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -515,221 +546,12 @@ export default function ClientsPage() {
         />
 
         {/* Add Client Modal */}
-        <Modal
+        <ClientTabbedModal
           isOpen={showAddForm}
           onClose={() => setShowAddForm(false)}
-          title="Add New Client"
-          size="lg"
-          footer={{
-            cancelText: "Cancel",
-            confirmText: "Add Client",
-            onCancel: () => setShowAddForm(false),
-            onConfirm: handleAddClient,
-          }}
-        >
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Name *
-                </label>
-                <Input
-                  placeholder="Client Name"
-                  value={newClient.name}
-                  onChange={(e) =>
-                    setNewClient({ ...newClient, name: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Email
-                </label>
-                <Input
-                  type="email"
-                  placeholder="client@example.com"
-                  value={newClient.email}
-                  onChange={(e) =>
-                    setNewClient({ ...newClient, email: e.target.value })
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Phone *
-                </label>
-                <Input
-                  placeholder="+1234567890"
-                  value={newClient.phone}
-                  onChange={(e) =>
-                    setNewClient({ ...newClient, phone: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Address
-                </label>
-                <Input
-                  placeholder="123 Main Street"
-                  value={newClient.address}
-                  onChange={(e) =>
-                    setNewClient({ ...newClient, address: e.target.value })
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Mikrotik Username *
-                </label>
-                <Input
-                  placeholder="client_username"
-                  value={newClient.mikrotikUsername}
-                  onChange={(e) =>
-                    setNewClient({
-                      ...newClient,
-                      mikrotikUsername: e.target.value,
-                    })
-                  }
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Package Selection
-                </label>
-                <Select
-                  options={[
-                    { value: "", label: "Select a package..." },
-                    ...(packages || []).map((pkg: ServiceProfile) => ({
-                      value: pkg.id,
-                      label: `${pkg.name} (${pkg.mikrotikProfile}) - ৳${Number(
-                        pkg.monthlyPrice
-                      ).toFixed(2)}`,
-                    })),
-                    { value: "custom", label: "Custom Package" },
-                  ]}
-                  value={newClient.selectedPackageId}
-                  onChange={(value) => {
-                    if (value === "custom") {
-                      setNewClient({
-                        ...newClient,
-                        selectedPackageId: "custom",
-                        serviceProfile: "",
-                        monthlyFee: "",
-                      });
-                    } else if (value) {
-                      const selectedPackage = packages?.find(
-                        (pkg: any) => pkg.id === value
-                      );
-                      if (selectedPackage) {
-                        setNewClient({
-                          ...newClient,
-                          selectedPackageId: value,
-                          serviceProfile: selectedPackage.mikrotikProfile,
-                          monthlyFee: selectedPackage.monthlyPrice,
-                        });
-                      }
-                    } else {
-                      setNewClient({
-                        ...newClient,
-                        selectedPackageId: "",
-                        serviceProfile: "",
-                        monthlyFee: "",
-                      });
-                    }
-                  }}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Mikrotik Profile
-                </label>
-                <Input
-                  placeholder="e.g., 5mb, 10mb"
-                  value={newClient.serviceProfile}
-                  onChange={(e) =>
-                    setNewClient({
-                      ...newClient,
-                      serviceProfile: e.target.value,
-                    })
-                  }
-                  disabled={
-                    !!(
-                      newClient.selectedPackageId &&
-                      newClient.selectedPackageId !== "custom"
-                    )
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Monthly Fee (৳)
-                </label>
-                <Input
-                  type="number"
-                  placeholder="29.99"
-                  value={newClient.monthlyFee}
-                  onChange={(e) =>
-                    setNewClient({ ...newClient, monthlyFee: e.target.value })
-                  }
-                  disabled={
-                    !!(
-                      newClient.selectedPackageId &&
-                      newClient.selectedPackageId !== "custom"
-                    )
-                  }
-                />
-              </div>
-            </div>
-
-            {/* Package Selection Summary */}
-            {newClient.selectedPackageId &&
-              newClient.selectedPackageId !== "custom" && (
-                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                        <Package className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-blue-900 dark:text-blue-100">
-                          Selected Package:
-                        </span>
-                        <span className="font-semibold text-blue-800 dark:text-blue-200">
-                          {
-                            packages?.find(
-                              (pkg: any) =>
-                                pkg.id === newClient.selectedPackageId
-                            )?.name
-                          }
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-4 mt-1 text-sm text-blue-700 dark:text-blue-300">
-                        <span>
-                          Profile:{" "}
-                          <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
-                            {newClient.serviceProfile}
-                          </code>
-                        </span>
-                        <span>
-                          Price:{" "}
-                          <strong>
-                            ৳{Number(newClient.monthlyFee).toFixed(2)}
-                          </strong>
-                        </span>
-                      </div>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-              )}
-          </div>
-        </Modal>
+          onSubmit={handleAddClient}
+          isLoading={false}
+        />
       </div>
     </div>
   );

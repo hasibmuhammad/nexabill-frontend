@@ -32,9 +32,38 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
-    // Hide number input spinners for webkit browsers
-    const inputStyle =
-      type === "number" ? { WebkitAppearance: "none" as const } : {};
+    // Hide number input spinners and prevent wheel increment
+    const inputStyle: React.CSSProperties =
+      type === "number"
+        ? {
+            appearance: "textfield",
+            WebkitAppearance: "textfield",
+            MozAppearance: "textfield",
+          }
+        : {};
+
+    const handleWheel: React.WheelEventHandler<HTMLInputElement> = (e) => {
+      if (type === "number") {
+        // Avoid passive event warning by not calling preventDefault.
+        // Instead, temporarily blur to stop wheel from changing the value.
+        const target = e.currentTarget;
+        target.blur();
+        setTimeout(() => target.focus({ preventScroll: true }), 0);
+      }
+    };
+
+    const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+      if (type === "number") {
+        if (
+          e.key === "ArrowUp" ||
+          e.key === "ArrowDown" ||
+          e.key === "PageUp" ||
+          e.key === "PageDown"
+        ) {
+          e.preventDefault();
+        }
+      }
+    };
 
     return (
       <div className={cn("space-y-1", containerClassName)}>
@@ -67,6 +96,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className
           )}
           style={inputStyle}
+          onWheel={handleWheel}
+          onKeyDown={handleKeyDown}
           ref={ref}
           {...props}
         />

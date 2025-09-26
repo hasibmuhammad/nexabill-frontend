@@ -5,6 +5,7 @@ import {
   getMikrotikServersWithStatus,
 } from "@/lib/api-mikrotik";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 export function useServerQueries() {
   // First check if there are any servers at all
@@ -38,13 +39,16 @@ export function useServerQueries() {
     serversLoading || (serversList && serversList.length > 0 && statusLoading);
   const error = serversError || statusError;
 
-  // Ensure servers is always an array, even if API returns error or unexpected data
-  // Handle both direct array and paginated response structure
-  const serversArray = Array.isArray(finalServers)
-    ? finalServers
-    : finalServers && Array.isArray(finalServers)
-    ? finalServers
-    : [];
+  // Memoize the servers array to prevent infinite re-renders
+  const serversArray = useMemo(() => {
+    // Ensure servers is always an array, even if API returns error or unexpected data
+    // Handle both direct array and paginated response structure
+    return Array.isArray(finalServers)
+      ? finalServers
+      : finalServers && Array.isArray(finalServers)
+      ? finalServers
+      : [];
+  }, [finalServers]);
 
   return {
     servers: serversArray,

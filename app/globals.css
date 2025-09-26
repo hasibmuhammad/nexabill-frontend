@@ -23,6 +23,18 @@
   }
 }
 
+/* Remove number input spin buttons across browsers */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+  appearance: textfield; /* Modern */
+}
+
 @layer base {
   :root {
     --background: 210 20% 98%;
@@ -68,6 +80,13 @@
     --input: 215 28% 22%;
     --ring: 217 91% 60%;
   }
+}
+
+/* Hint browsers to render native form controls (e.g., datepicker) in dark theme */
+.dark input,
+.dark select,
+.dark textarea {
+  color-scheme: dark;
 }
 
 @layer utilities {
@@ -122,6 +141,44 @@
   .ring-ring {
     --tw-ring-color: hsl(var(--ring));
   }
+}
+
+/* Fix Chrome/Edge/Safari autofill background and text color in both themes */
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: hsl(var(--foreground));
+  caret-color: hsl(var(--foreground));
+  transition: background-color 9999s ease-in-out 0s, color 0s ease-in-out 0s;
+  box-shadow: 0 0 0px 1000px hsl(var(--card)) inset;
+}
+
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: hsl(var(--foreground));
+  box-shadow: 0 0 0px 1000px hsl(var(--card)) inset;
+}
+
+/* Firefox */
+input:-moz-autofill,
+textarea:-moz-autofill,
+select:-moz-autofill {
+  box-shadow: 0 0 0px 1000px hsl(var(--card)) inset;
+  -moz-text-fill-color: hsl(var(--foreground));
+}
+
+/* Fix native date input calendar icon visibility in dark mode */
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.dark input[type="month"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator,
+.dark input[type="week"]::-webkit-calendar-picker-indicator {
+  filter: none !important;
+  opacity: 0.9;
 }
 
 /* Custom scrollbar */

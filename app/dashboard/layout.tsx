@@ -10,6 +10,7 @@ import {
   Cog,
   DollarSign,
   Home,
+  IdCard,
   LogOut,
   MapPin,
   Menu,
@@ -52,6 +53,12 @@ const navigationStructure = [
     ],
   },
   { name: "Clients", href: "/dashboard/clients", icon: Users, type: "single" },
+  {
+    name: "Employees",
+    href: "/dashboard/employees",
+    icon: IdCard,
+    type: "single",
+  },
   {
     name: "Mikrotik Servers",
     href: "/dashboard/servers",

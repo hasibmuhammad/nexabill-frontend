@@ -125,7 +125,7 @@ export function Modal({
         {footer && (
           <div
             className={
-              `p-4 border-t border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 flex-shrink-0 ` +
+              `p-4 border-t border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 flex-shrink-0 rounded-b-xl ` +
               (footer.fullWidth
                 ? "grid grid-cols-2 gap-4"
                 : "flex items-center justify-end space-x-4")
