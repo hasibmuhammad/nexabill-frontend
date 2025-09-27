@@ -15,10 +15,12 @@ export interface DayInputProps {
   disabled?: boolean;
   className?: string;
   inputClassName?: string;
+  label?: string;
   placement?: "top" | "bottom";
 }
 
 export const DayInput: React.FC<DayInputProps> = ({
+  label,
   value,
   onChange,
   min = 1,
@@ -65,6 +67,7 @@ export const DayInput: React.FC<DayInputProps> = ({
     <div className={cn("relative", className)} ref={containerRef}>
       <div className="relative">
         <Input
+          label={label}
           placeholder={placeholder}
           value={value ?? ""}
           onChange={(e) => handleManualChange(e.target.value)}
@@ -75,11 +78,12 @@ export const DayInput: React.FC<DayInputProps> = ({
         />
         <button
           type="button"
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 z-10"
           onClick={() => setOpen((v) => !v)}
           aria-label="Open day picker"
+          style={{ top: label ? "calc(50% + 0.75rem)" : "50%" }}
         >
-          <CalendarIcon className="h-5 w-5" />
+          <CalendarIcon className="h-4 w-4" />
         </button>
       </div>
 

@@ -5,7 +5,22 @@ import { DateInput } from "@/components/ui/date-input";
 import { DayInput } from "@/components/ui/day-input";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  getActiveConnectionTypes,
+  type ConnectionType,
+} from "@/lib/api-connection-types";
+import { type District } from "@/lib/api-districts";
+import { getMikrotikServers, type MikrotikServer } from "@/lib/api-mikrotik";
+import {
+  getActiveProtocolTypes,
+  type ProtocolType,
+} from "@/lib/api-protocol-types";
+import { getSubzones, type Subzone } from "@/lib/api-subzones";
+import { type Upazila } from "@/lib/api-upazilas";
+import { getZones, type Zone } from "@/lib/api-zones";
+import { type ServiceProfile } from "@/lib/packages";
 import {
   Camera,
   FileImage,
@@ -17,6 +32,7 @@ import {
   User,
   Wifi,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface ClientFormData {
   // Basic Info
@@ -30,6 +46,7 @@ interface ClientFormData {
   mobileNumber: string;
   email: string;
   districtId: string;
+  upazilaId: string;
   address: string;
   latitude?: number;
   longitude?: number;
@@ -65,6 +82,9 @@ interface ClientFormTabsProps {
   setFormData: React.Dispatch<React.SetStateAction<ClientFormData>>;
   errors: Partial<ClientFormData>;
   setErrors: React.Dispatch<React.SetStateAction<Partial<ClientFormData>>>;
+  packages?: ServiceProfile[];
+  districts?: District[];
+  upazilas?: Upazila[];
 }
 
 export function BasicInfoTab({
@@ -109,46 +129,32 @@ export function BasicInfoTab({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Name */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Full Name *
-            </label>
             <Input
+              required
+              label="Full Name"
               placeholder="Enter client's full name"
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
-              className={
-                errors.name ? "border-red-500 focus:border-red-500" : ""
-              }
+              error={errors.name}
             />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-            )}
           </div>
 
           {/* NID/Birth Certificate No */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              NID/Birth Certificate No *
-            </label>
             <Input
+              required
+              label="NID/Birth Certificate No"
               placeholder="Enter NID or Birth Certificate number"
               value={formData.nid}
               onChange={(e) => handleInputChange("nid", e.target.value)}
-              className={
-                errors.nid ? "border-red-500 focus:border-red-500" : ""
-              }
+              error={errors.nid}
             />
-            {errors.nid && (
-              <p className="mt-1 text-sm text-red-600">{errors.nid}</p>
-            )}
           </div>
 
           {/* Registration Form No */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Registration Form No
-            </label>
             <Input
+              label="Registration Form No"
               placeholder="Enter registration form number"
               value={formData.registrationFormNo}
               onChange={(e) =>
@@ -224,6 +230,8 @@ export function ContactInfoTab({
   setFormData,
   errors,
   setErrors,
+  districts = [],
+  upazilas = [],
 }: ClientFormTabsProps) {
   const handleInputChange = (
     field: keyof ClientFormData,
@@ -254,30 +262,22 @@ export function ContactInfoTab({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Mobile Number */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Mobile Number *
-            </label>
             <Input
+              required
+              label="Mobile Number"
               placeholder="+880 1XXX XXXXXX"
               value={formData.mobileNumber}
               onChange={(e) =>
                 handleInputChange("mobileNumber", e.target.value)
               }
-              className={
-                errors.mobileNumber ? "border-red-500 focus:border-red-500" : ""
-              }
+              error={errors.mobileNumber}
             />
-            {errors.mobileNumber && (
-              <p className="mt-1 text-sm text-red-600">{errors.mobileNumber}</p>
-            )}
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Email Address
-            </label>
             <Input
+              label="Email Address"
               type="email"
               placeholder="client@example.com"
               value={formData.email}
@@ -287,44 +287,41 @@ export function ContactInfoTab({
 
           {/* District */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              District *
-            </label>
-            <Input
+            <Select
+              required
+              label="District"
               placeholder="Select district"
               value={formData.districtId}
-              onChange={(e) => handleInputChange("districtId", e.target.value)}
-              className={
-                errors.districtId ? "border-red-500 focus:border-red-500" : ""
-              }
+              onChange={(value) => handleInputChange("districtId", value)}
+              options={districts.map((district) => ({
+                value: district.id,
+                label: district.name,
+              }))}
+              error={errors.districtId}
             />
-            {/* TODO: Replace with proper district dropdown */}
-            <p className="mt-1 text-xs text-slate-500">
-              Dropdown will be implemented
-            </p>
           </div>
 
-          {/* Address */}
+          {/* Upazila */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Address
-            </label>
-            <Textarea
-              placeholder="Road number, house number, area details"
-              value={formData.address}
-              onChange={(e) => handleInputChange("address", e.target.value)}
-              rows={3}
+            <Select
+              required
+              label="Upazila"
+              placeholder="Select upazila"
+              value={formData.upazilaId}
+              onChange={(value) => handleInputChange("upazilaId", value)}
+              options={upazilas.map((upazila) => ({
+                value: upazila.id,
+                label: upazila.name,
+              }))}
+              error={errors.upazilaId}
             />
           </div>
-
           {/* Map Coordinates */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Map Coordinates (Optional)
-            </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Input
+                  label="Latitude"
                   type="number"
                   step="any"
                   placeholder="Latitude"
@@ -339,6 +336,7 @@ export function ContactInfoTab({
               </div>
               <div>
                 <Input
+                  label="Longitude"
                   type="number"
                   step="any"
                   placeholder="Longitude"
@@ -357,6 +355,17 @@ export function ContactInfoTab({
               GPS coordinates for precise location mapping
             </p>
           </div>
+
+          {/* Address */}
+          <div className="md:col-span-2">
+            <Textarea
+              label="Address"
+              placeholder="Road number, house number, area details"
+              value={formData.address}
+              onChange={(e) => handleInputChange("address", e.target.value)}
+              rows={3}
+            />
+          </div>
         </div>
       </Card>
     </div>
@@ -369,6 +378,20 @@ export function NetworkInfoTab({
   errors,
   setErrors,
 }: ClientFormTabsProps) {
+  // State for dropdown options
+  const [servers, setServers] = useState<MikrotikServer[]>([]);
+  const [protocolTypes, setProtocolTypes] = useState<ProtocolType[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [subzones, setSubzones] = useState<Subzone[]>([]);
+  const [connectionTypes, setConnectionTypes] = useState<ConnectionType[]>([]);
+
+  // Loading states
+  const [loadingServers, setLoadingServers] = useState(true);
+  const [loadingProtocolTypes, setLoadingProtocolTypes] = useState(true);
+  const [loadingZones, setLoadingZones] = useState(true);
+  const [loadingSubzones, setLoadingSubzones] = useState(false);
+  const [loadingConnectionTypes, setLoadingConnectionTypes] = useState(true);
+
   const handleInputChange = (
     field: keyof ClientFormData,
     value: string | number | boolean | File | null
@@ -378,7 +401,75 @@ export function NetworkInfoTab({
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
+
+    // Handle cascading dropdowns
+    if (field === "zoneId") {
+      // Clear subzone when zone changes
+      setFormData((prev) => ({ ...prev, subzoneId: "" }));
+      setSubzones([]);
+    }
   };
+
+  // Load initial data
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        // Load servers
+        const serversData = await getMikrotikServers();
+        setServers(serversData);
+        setLoadingServers(false);
+
+        // Load protocol types
+        const protocolResponse = await getActiveProtocolTypes();
+        setProtocolTypes(protocolResponse.data);
+        setLoadingProtocolTypes(false);
+
+        // Load zones
+        const zonesResponse = await getZones({ isActive: true, limit: 1000 });
+        setZones(zonesResponse.data);
+        setLoadingZones(false);
+
+        // Load connection types
+        const connectionResponse = await getActiveConnectionTypes();
+        setConnectionTypes(connectionResponse.data);
+        setLoadingConnectionTypes(false);
+      } catch (error) {
+        console.error("Error loading network data:", error);
+        setLoadingServers(false);
+        setLoadingProtocolTypes(false);
+        setLoadingZones(false);
+        setLoadingConnectionTypes(false);
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  // Load subzones when zone changes
+  useEffect(() => {
+    const loadSubzones = async () => {
+      if (formData.zoneId) {
+        setLoadingSubzones(true);
+        try {
+          const response = await getSubzones({
+            zoneId: formData.zoneId,
+            isActive: true,
+            limit: 1000,
+          });
+          setSubzones(response.data);
+        } catch (error) {
+          console.error("Error loading subzones:", error);
+          setSubzones([]);
+        } finally {
+          setLoadingSubzones(false);
+        }
+      } else {
+        setSubzones([]);
+      }
+    };
+
+    loadSubzones();
+  }, [formData.zoneId]);
 
   return (
     <div className="space-y-6">
@@ -398,103 +489,108 @@ export function NetworkInfoTab({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Server */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Server *
-            </label>
-            <Input
-              placeholder="Select Mikrotik server"
+            <Select
+              required
+              label="Server"
+              placeholder={
+                loadingServers ? "Loading servers..." : "Select Mikrotik server"
+              }
               value={formData.mikrotikServerId}
-              onChange={(e) =>
-                handleInputChange("mikrotikServerId", e.target.value)
-              }
-              className={
-                errors.mikrotikServerId
-                  ? "border-red-500 focus:border-red-500"
-                  : ""
-              }
+              onChange={(value) => handleInputChange("mikrotikServerId", value)}
+              options={servers.map((server) => ({
+                value: server.id,
+                label: `${server.name} (${server.host})`,
+              }))}
+              error={errors.mikrotikServerId}
+              disabled={loadingServers}
             />
-            {/* TODO: Replace with server dropdown */}
-            <p className="mt-1 text-xs text-slate-500">
-              Server dropdown will be implemented
-            </p>
           </div>
 
           {/* Protocol Type */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Protocol Type *
-            </label>
-            <Input
-              placeholder="Select protocol type"
+            <Select
+              required
+              label="Protocol Type"
+              placeholder={
+                loadingProtocolTypes
+                  ? "Loading protocol types..."
+                  : "Select protocol type"
+              }
               value={formData.protocolTypeId}
-              onChange={(e) =>
-                handleInputChange("protocolTypeId", e.target.value)
-              }
-              className={
-                errors.protocolTypeId
-                  ? "border-red-500 focus:border-red-500"
-                  : ""
-              }
+              onChange={(value) => handleInputChange("protocolTypeId", value)}
+              options={protocolTypes.map((type) => ({
+                value: type.id,
+                label: type.name,
+              }))}
+              error={errors.protocolTypeId}
+              disabled={loadingProtocolTypes}
             />
-            {/* TODO: Replace with protocol dropdown */}
           </div>
 
           {/* Zone */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Zone *
-            </label>
-            <Input
-              placeholder="Select zone"
+            <Select
+              required
+              label="Zone"
+              placeholder={loadingZones ? "Loading zones..." : "Select zone"}
               value={formData.zoneId}
-              onChange={(e) => handleInputChange("zoneId", e.target.value)}
-              className={
-                errors.zoneId ? "border-red-500 focus:border-red-500" : ""
-              }
+              onChange={(value) => handleInputChange("zoneId", value)}
+              options={zones.map((zone) => ({
+                value: zone.id,
+                label: zone.name,
+              }))}
+              error={errors.zoneId}
+              disabled={loadingZones}
             />
-            {/* TODO: Replace with zone dropdown */}
           </div>
 
           {/* Subzone */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Subzone
-            </label>
-            <Input
-              placeholder="Select subzone"
+            <Select
+              label="Subzone"
+              placeholder={
+                !formData.zoneId
+                  ? "Select zone first"
+                  : loadingSubzones
+                  ? "Loading subzones..."
+                  : "Select subzone"
+              }
               value={formData.subzoneId}
-              onChange={(e) => handleInputChange("subzoneId", e.target.value)}
+              onChange={(value) => handleInputChange("subzoneId", value)}
+              options={subzones.map((subzone) => ({
+                value: subzone.id,
+                label: subzone.name,
+              }))}
+              disabled={!formData.zoneId || loadingSubzones}
             />
-            {/* TODO: Replace with subzone dropdown */}
           </div>
 
           {/* Connection Type */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Connection Type *
-            </label>
-            <Input
-              placeholder="Select connection type"
+            <Select
+              required
+              label="Connection Type"
+              placeholder={
+                loadingConnectionTypes
+                  ? "Loading connection types..."
+                  : "Select connection type"
+              }
               value={formData.connectionTypeId}
-              onChange={(e) =>
-                handleInputChange("connectionTypeId", e.target.value)
-              }
-              className={
-                errors.connectionTypeId
-                  ? "border-red-500 focus:border-red-500"
-                  : ""
-              }
+              onChange={(value) => handleInputChange("connectionTypeId", value)}
+              options={connectionTypes.map((type) => ({
+                value: type.id,
+                label: type.name,
+              }))}
+              error={errors.connectionTypeId}
+              disabled={loadingConnectionTypes}
             />
-            {/* TODO: Replace with connection type dropdown */}
           </div>
 
           {/* Cable Requirement */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Cable Requirement (Metres)
-            </label>
             <Input
               type="number"
+              label="Cable Requirement (Metres)"
               placeholder="Enter cable length in metres"
               value={formData.cableRequirement}
               onChange={(e) =>
@@ -505,10 +601,8 @@ export function NetworkInfoTab({
 
           {/* Fiber Code */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Fiber Code
-            </label>
             <Input
+              label="Fiber Code"
               placeholder="Enter fiber code"
               value={formData.fiberCode}
               onChange={(e) => handleInputChange("fiberCode", e.target.value)}
@@ -517,11 +611,9 @@ export function NetworkInfoTab({
 
           {/* Number of Core */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Number of Core
-            </label>
             <Input
               type="number"
+              label="Number of Core"
               placeholder="Enter number of cores"
               value={formData.numberOfCore}
               onChange={(e) =>
@@ -532,10 +624,8 @@ export function NetworkInfoTab({
 
           {/* Core Color */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Core Color
-            </label>
             <Input
+              label="Core Color"
               placeholder="Enter core color"
               value={formData.coreColor}
               onChange={(e) => handleInputChange("coreColor", e.target.value)}
@@ -552,6 +642,7 @@ export function ServiceInfoTab({
   setFormData,
   errors,
   setErrors,
+  packages = [],
 }: ClientFormTabsProps) {
   const handleInputChange = (
     field: keyof ClientFormData,
@@ -583,30 +674,24 @@ export function ServiceInfoTab({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Package */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Package *
-            </label>
-            <Input
+            <Select
               placeholder="Select package"
+              required
+              label="Package"
               value={formData.serviceProfileId}
-              onChange={(e) =>
-                handleInputChange("serviceProfileId", e.target.value)
-              }
-              className={
-                errors.serviceProfileId
-                  ? "border-red-500 focus:border-red-500"
-                  : ""
-              }
+              onChange={(v) => handleInputChange("serviceProfileId", v)}
+              options={packages.map((pkg) => ({
+                value: pkg.id,
+                label: `${pkg.name} - ৳${pkg.monthlyPrice}`,
+              }))}
+              error={errors.serviceProfileId}
             />
-            {/* TODO: Replace with package dropdown */}
           </div>
 
           {/* Client Type */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Client Type
-            </label>
             <Input
+              label="Client Type"
               placeholder="Select client type"
               value={formData.clientType}
               onChange={(e) => handleInputChange("clientType", e.target.value)}
@@ -615,43 +700,40 @@ export function ServiceInfoTab({
 
           {/* Billing Status */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Billing Status
-            </label>
-            <Input
-              placeholder="Select billing status"
+            <Select
+              placeholder="Billing Status"
+              required
+              label="Billing Status"
               value={formData.billingStatus}
-              onChange={(e) =>
-                handleInputChange("billingStatus", e.target.value)
-              }
+              onChange={(v) => handleInputChange("billingStatus", v)}
+              options={[
+                { value: "ACTIVE", label: "active" },
+                { value: "INACTIVE", label: "inactive" },
+                { value: "FREE", label: "free" },
+                { value: "LEFT", label: "left" },
+              ]}
+              error={errors.billingStatus as any}
             />
           </div>
 
           {/* Username/IP */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Username/IP *
-            </label>
             <Input
+              required
+              label="Username/IP"
               placeholder="Enter Mikrotik username"
               value={formData.mikrotikUsername}
               onChange={(e) =>
                 handleInputChange("mikrotikUsername", e.target.value)
               }
-              className={
-                errors.mikrotikUsername
-                  ? "border-red-500 focus:border-red-500"
-                  : ""
-              }
+              error={errors.mikrotikUsername}
             />
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Password
-            </label>
             <PasswordInput
+              label="Password"
               placeholder="Enter password"
               value={formData.password}
               onChange={(e) => handleInputChange("password", e.target.value)}
@@ -660,10 +742,8 @@ export function ServiceInfoTab({
 
           {/* Joining Date */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Joining Date
-            </label>
             <DateInput
+              label="Joining Date"
               value={formData.joiningDate}
               onChange={(v) => handleInputChange("joiningDate", v)}
             />
@@ -671,10 +751,8 @@ export function ServiceInfoTab({
 
           {/* Billing Cycle */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Billing Cycle (Day: 1-31)
-            </label>
             <DayInput
+              label="Billing Cycle (Day: 1-31)"
               value={formData.billingCycle}
               onChange={(day) => handleInputChange("billingCycle", day)}
             />
@@ -699,10 +777,8 @@ export function ServiceInfoTab({
         <div className="grid grid-cols-1 md:grid-cols-2 place-content-center gap-6">
           {/* Reference By */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Reference By
-            </label>
             <Input
+              label="Reference By"
               placeholder="Who referred this client"
               value={formData.referenceBy}
               onChange={(e) => handleInputChange("referenceBy", e.target.value)}
@@ -711,25 +787,11 @@ export function ServiceInfoTab({
 
           {/* Connected By */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Connected By (Connector)
-            </label>
             <Input
+              label="Connected By (Connector)"
               placeholder="Name of connector"
               value={formData.connectedBy}
               onChange={(e) => handleInputChange("connectedBy", e.target.value)}
-            />
-          </div>
-
-          {/* Assign To */}
-          <div className="w-full md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Assign To (Connector)
-            </label>
-            <Input
-              placeholder="Assign to connector"
-              value={formData.assignTo}
-              onChange={(e) => handleInputChange("assignTo", e.target.value)}
             />
           </div>
         </div>

@@ -26,6 +26,12 @@ export const getPppoeProfiles = async (): Promise<ServiceProfile[]> => {
   return response.data?.data || [];
 };
 
+// Backward-compatible alias: treat service profiles as packages in the UI
+export type Package = ServiceProfile;
+export const getPackages = async (): Promise<Package[]> => {
+  return await getPppoeProfiles();
+};
+
 export interface CreateServiceProfileInput {
   name: string;
   mikrotikProfile: string;

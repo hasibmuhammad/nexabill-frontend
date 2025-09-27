@@ -107,6 +107,8 @@ export const DateInput: React.FC<DateInputProps> = ({
       <div className="flex items-center">
         <div className="relative flex-1">
           <Input
+            label={label}
+            required={required}
             placeholder={placeholder}
             value={value || ""}
             onChange={(e) => {
@@ -124,11 +126,12 @@ export const DateInput: React.FC<DateInputProps> = ({
           />
           <button
             type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
             onClick={() => setOpen((v) => !v)}
             aria-label="Open calendar"
+            style={{ top: label ? "calc(50% + 0.75rem)" : "50%" }}
           >
-            <CalendarIcon className="h-5 w-5" />
+            <CalendarIcon className="h-4 w-4" />
           </button>
         </div>
       </div>

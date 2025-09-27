@@ -73,7 +73,7 @@ export function Calendar({
         className
       )}
     >
-      <div className="p-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+      <div className="py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
         <Button
           variant="ghost"
           size="sm"
@@ -95,7 +95,7 @@ export function Calendar({
               className="m-0"
               selectClassName="px-2 py-1 text-xs h-8 w-full"
             />
-            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+            <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
           </div>
           <div className="relative w-24">
             <Select
@@ -108,7 +108,7 @@ export function Calendar({
               className="m-0"
               selectClassName="px-2 py-1 text-xs h-8 w-full"
             />
-            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+            <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
           </div>
         </div>
         <Button

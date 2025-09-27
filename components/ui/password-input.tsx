@@ -26,8 +26,9 @@ export const PasswordInput = React.forwardRef<
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors duration-200"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors duration-200"
           title={showPassword ? "Hide password" : "Show password"}
+          style={{ top: props.label ? "calc(50% + 0.75rem)" : "50%" }}
         >
           {showPassword ? (
             <EyeOff className="h-4 w-4" />

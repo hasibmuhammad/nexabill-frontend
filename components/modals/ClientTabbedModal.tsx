@@ -1,6 +1,10 @@
 "use client";
 
 import { TabbedModal } from "@/components/ui/tabbed-modal";
+import { getActiveDistricts } from "@/lib/api-districts";
+import { getActiveUpazilas } from "@/lib/api-upazilas";
+import { getPackages } from "@/lib/packages";
+import { useQuery } from "@tanstack/react-query";
 import { Package, Phone, User, Wifi } from "lucide-react";
 import { useState } from "react";
 import {
@@ -29,6 +33,7 @@ interface ClientFormData {
   mobileNumber: string;
   email: string;
   districtId: string;
+  upazilaId: string;
   address: string;
   latitude?: number;
   longitude?: number;
@@ -71,6 +76,7 @@ const initialFormData: ClientFormData = {
   mobileNumber: "",
   email: "",
   districtId: "",
+  upazilaId: "",
   address: "",
   latitude: undefined,
   longitude: undefined,
@@ -110,6 +116,27 @@ export function ClientTabbedModal({
   const [formData, setFormData] = useState<ClientFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<ClientFormData>>({});
 
+  // Fetch packages for the dropdown
+  const { data: packages = [] } = useQuery({
+    queryKey: ["packages"],
+    queryFn: getPackages,
+    enabled: isOpen,
+  });
+
+  // Fetch districts for the dropdown
+  const { data: districts = [] } = useQuery({
+    queryKey: ["districts"],
+    queryFn: getActiveDistricts,
+    enabled: isOpen,
+  });
+
+  // Fetch upazilas for the dropdown
+  const { data: upazilas = [] } = useQuery({
+    queryKey: ["upazilas"],
+    queryFn: getActiveUpazilas,
+    enabled: isOpen,
+  });
+
   const tabs = [
     {
       id: "basic-info",
@@ -147,6 +174,7 @@ export function ClientTabbedModal({
           newErrors.mobileNumber = "Mobile number is required";
         if (!data.districtId.trim())
           newErrors.districtId = "District is required";
+        if (!data.upazilaId.trim()) newErrors.upazilaId = "Upazila is required";
         break;
 
       case "network-info":
@@ -162,6 +190,8 @@ export function ClientTabbedModal({
       case "service-info":
         if (!data.serviceProfileId.trim())
           newErrors.serviceProfileId = "Package is required";
+        if (!data.billingStatus.trim())
+          newErrors.billingStatus = "Billing status is required";
         if (!data.mikrotikUsername.trim())
           newErrors.mikrotikUsername = "Username/IP is required";
         break;
@@ -196,6 +226,9 @@ export function ClientTabbedModal({
       setFormData,
       errors,
       setErrors,
+      packages,
+      districts,
+      upazilas,
     };
 
     const tabId = tabs[activeTabIndex]?.id;
