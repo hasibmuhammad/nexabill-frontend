@@ -12,6 +12,7 @@ import {
   type ConnectionType,
 } from "@/lib/api-connection-types";
 import { type District } from "@/lib/api-districts";
+import { getEmployees, type Employee } from "@/lib/api-employees";
 import { getMikrotikServers, type MikrotikServer } from "@/lib/api-mikrotik";
 import {
   getActiveProtocolTypes,
@@ -48,8 +49,8 @@ interface ClientFormData {
   districtId: string;
   upazilaId: string;
   address: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: string;
+  longitude?: string;
 
   // Network/Product Info
   mikrotikServerId: string;
@@ -322,37 +323,29 @@ export function ContactInfoTab({
               <div>
                 <Input
                   label="Latitude"
-                  type="number"
-                  step="any"
-                  placeholder="Latitude"
+                  type="text"
+                  placeholder="Latitude (e.g., 10.30.30.40)"
                   value={formData.latitude || ""}
                   onChange={(e) =>
-                    handleInputChange(
-                      "latitude",
-                      e.target.value ? parseFloat(e.target.value) : null
-                    )
+                    handleInputChange("latitude", e.target.value)
                   }
                 />
               </div>
               <div>
                 <Input
                   label="Longitude"
-                  type="number"
-                  step="any"
-                  placeholder="Longitude"
+                  type="text"
+                  placeholder="Longitude (e.g., 10.30.30.40)"
                   value={formData.longitude || ""}
                   onChange={(e) =>
-                    handleInputChange(
-                      "longitude",
-                      e.target.value ? parseFloat(e.target.value) : null
-                    )
+                    handleInputChange("longitude", e.target.value)
                   }
                 />
               </div>
             </div>
             <p className="mt-1 text-xs text-slate-500">
               <MapPin className="h-3 w-3 inline mr-1" />
-              GPS coordinates for precise location mapping
+              Location coordinates in IP-like format (e.g., 10.30.30.40)
             </p>
           </div>
 
@@ -644,6 +637,10 @@ export function ServiceInfoTab({
   setErrors,
   packages = [],
 }: ClientFormTabsProps) {
+  // State for employees
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(true);
+
   const handleInputChange = (
     field: keyof ClientFormData,
     value: string | number | boolean | File | null
@@ -654,6 +651,22 @@ export function ServiceInfoTab({
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
+
+  // Load employees
+  useEffect(() => {
+    const loadEmployees = async () => {
+      try {
+        const response = await getEmployees({ isActive: true, limit: 1000 });
+        setEmployees(response.data);
+        setLoadingEmployees(false);
+      } catch (error) {
+        console.error("Error loading employees:", error);
+        setLoadingEmployees(false);
+      }
+    };
+
+    loadEmployees();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -707,10 +720,10 @@ export function ServiceInfoTab({
               value={formData.billingStatus}
               onChange={(v) => handleInputChange("billingStatus", v)}
               options={[
-                { value: "ACTIVE", label: "active" },
-                { value: "INACTIVE", label: "inactive" },
-                { value: "FREE", label: "free" },
-                { value: "LEFT", label: "left" },
+                { value: "ACTIVE", label: "Active" },
+                { value: "INACTIVE", label: "Inactive" },
+                { value: "FREE", label: "Free" },
+                { value: "LEFT", label: "Left" },
               ]}
               error={errors.billingStatus as any}
             />
@@ -787,11 +800,18 @@ export function ServiceInfoTab({
 
           {/* Connected By */}
           <div>
-            <Input
+            <Select
               label="Connected By (Connector)"
-              placeholder="Name of connector"
+              placeholder={
+                loadingEmployees ? "Loading employees..." : "Select connector"
+              }
               value={formData.connectedBy}
-              onChange={(e) => handleInputChange("connectedBy", e.target.value)}
+              onChange={(value) => handleInputChange("connectedBy", value)}
+              options={employees.map((employee) => ({
+                value: employee.id,
+                label: `${employee.name} (${employee.designation})`,
+              }))}
+              disabled={loadingEmployees}
             />
           </div>
         </div>

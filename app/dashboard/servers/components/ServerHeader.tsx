@@ -18,7 +18,7 @@ export function ServerHeader({ server, refreshingStatus }: ServerHeaderProps) {
           <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">
             {server.name}
           </h3>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 truncate">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 truncate blur-md">
             {server.host}:{server.port}
           </p>
         </div>

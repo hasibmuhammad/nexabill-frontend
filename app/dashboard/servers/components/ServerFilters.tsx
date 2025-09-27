@@ -1,11 +1,10 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { type MikrotikServer } from "@/lib/api-mikrotik";
-import { Search, X } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface ServerFiltersProps {
@@ -33,13 +32,6 @@ export function ServerFilters({
     setStatusFilter(value);
   };
 
-  const clearFilters = () => {
-    setSearchTerm("");
-    setStatusFilter("ALL");
-  };
-
-  const hasActiveFilters = searchTerm.trim() || statusFilter !== "ALL";
-
   return (
     <Card className="p-4 mb-6">
       <div className="flex flex-col sm:flex-row gap-4">
@@ -54,34 +46,21 @@ export function ServerFilters({
             />
           </div>
         </div>
-        <div className="flex gap-2">
-          <Select
-            value={statusFilter}
-            onChange={handleStatusFilterChange}
-            options={[
-              { value: "ALL", label: "All Servers" },
-              { value: "ACTIVE", label: "Active" },
-              { value: "INACTIVE", label: "Inactive" },
-            ]}
-            selectClassName="min-w-[140px]"
-          />
-          {hasActiveFilters && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearFilters}
-              className="px-3"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+        <div className="flex gap-2 items-start">
+          <div className="min-w-[180px]">
+            <Select
+              value={statusFilter}
+              onChange={handleStatusFilterChange}
+              options={[
+                { value: "ALL", label: "All Servers" },
+                { value: "ACTIVE", label: "Active" },
+                { value: "INACTIVE", label: "Inactive" },
+              ]}
+              selectClassName="w-full"
+            />
+          </div>
         </div>
       </div>
-      {hasActiveFilters && (
-        <div className="mt-3 text-sm text-slate-600 dark:text-slate-400">
-          Showing filtered results
-        </div>
-      )}
     </Card>
   );
 }

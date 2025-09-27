@@ -12,6 +12,7 @@ export interface InputProps
   inputClassName?: string;
   errorClassName?: string;
   helperClassName?: string;
+  children?: React.ReactNode;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
@@ -28,6 +29,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       helperClassName,
       className,
       type = "text",
+      children,
       ...props
     },
     ref
@@ -101,6 +103,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           {...props}
         />
+        {children}
         {error && (
           <p
             className={cn(

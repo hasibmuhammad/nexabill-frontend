@@ -35,8 +35,8 @@ interface ClientFormData {
   districtId: string;
   upazilaId: string;
   address: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: string;
+  longitude?: string;
 
   // Network/Product Info
   mikrotikServerId: string;
@@ -78,8 +78,8 @@ const initialFormData: ClientFormData = {
   districtId: "",
   upazilaId: "",
   address: "",
-  latitude: undefined,
-  longitude: undefined,
+  latitude: "",
+  longitude: "",
 
   // Network/Product Info
   mikrotikServerId: "",

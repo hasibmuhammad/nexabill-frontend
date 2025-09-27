@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectOption } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import moment, { Moment } from "moment";
 import { useMemo, useState } from "react";
 
@@ -95,7 +95,6 @@ export function Calendar({
               className="m-0"
               selectClassName="px-2 py-1 text-xs h-8 w-full"
             />
-            <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
           </div>
           <div className="relative w-24">
             <Select
@@ -108,7 +107,6 @@ export function Calendar({
               className="m-0"
               selectClassName="px-2 py-1 text-xs h-8 w-full"
             />
-            <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
           </div>
         </div>
         <Button
