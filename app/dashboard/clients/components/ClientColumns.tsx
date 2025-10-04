@@ -34,6 +34,7 @@ interface ISPClient {
   billCycleDate: string;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "PENDING";
   connectionStatus: "CONNECTED" | "DISCONNECTED";
+  clientType: "HOME" | "CORPORATE";
   lastSyncAt: string | null;
   mikrotikServer: {
     id: string;

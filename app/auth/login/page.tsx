@@ -95,7 +95,7 @@ export default function LoginPage() {
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-              ISP Billing
+              NexaBill
             </h1>
             <p className="text-slate-600 dark:text-slate-400 text-sm">
               Sign in to your account
@@ -195,7 +195,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              ISP Billing System v1.0
+              NexaBill System v1.0
             </p>
           </div>
         </div>

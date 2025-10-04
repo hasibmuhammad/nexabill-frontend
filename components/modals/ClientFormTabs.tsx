@@ -703,11 +703,16 @@ export function ServiceInfoTab({
 
           {/* Client Type */}
           <div>
-            <Input
+            <Select
               label="Client Type"
               placeholder="Select client type"
               value={formData.clientType}
-              onChange={(e) => handleInputChange("clientType", e.target.value)}
+              onChange={(value) => handleInputChange("clientType", value)}
+              options={[
+                { value: "HOME", label: "Home" },
+                { value: "CORPORATE", label: "Corporate" },
+              ]}
+              required
             />
           </div>
 

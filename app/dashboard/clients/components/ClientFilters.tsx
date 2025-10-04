@@ -18,6 +18,7 @@ interface FilterState {
   server: string;
   status: string;
   connection: string;
+  clientType: string;
   zone: string;
   district: string;
 }
@@ -94,6 +95,18 @@ export function ClientFilters({
         key: "connection",
         label: "Connection",
         value: connectionLabels[filters.connection] || filters.connection,
+      });
+    }
+
+    if (filters.clientType) {
+      const clientTypeLabels: { [key: string]: string } = {
+        HOME: "Home",
+        CORPORATE: "Corporate",
+      };
+      activeFilters.push({
+        key: "clientType",
+        label: "Type",
+        value: clientTypeLabels[filters.clientType] || filters.clientType,
       });
     }
 
@@ -212,6 +225,20 @@ export function ClientFilters({
                 onChange={(value) => onFilterChange("connection", value)}
                 placeholder="All Connections"
                 options={CONNECTION_STATUS_OPTIONS}
+                selectClassName="h-11"
+              />
+
+              {/* Client Type Filter */}
+              <Select
+                label="Client Type"
+                value={filters.clientType}
+                onChange={(value) => onFilterChange("clientType", value)}
+                placeholder="All Types"
+                options={[
+                  { value: "", label: "All Types" },
+                  { value: "HOME", label: "Home" },
+                  { value: "CORPORATE", label: "Corporate" },
+                ]}
                 selectClassName="h-11"
               />
 

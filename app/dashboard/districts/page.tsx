@@ -10,6 +10,7 @@ import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useDataTable } from "@/hooks/use-data-table";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   createDistrict,
@@ -26,52 +27,81 @@ import { toast } from "react-hot-toast";
 
 export default function DistrictsPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const dataTable = useDataTable<District>({
+    initialPageSize: 10,
+    initialPageIndex: 0,
+    initialSearch: "",
+    initialSortBy: "name",
+    initialSortOrder: "asc",
+  });
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<District | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [districtToDelete, setDistrictToDelete] = useState<District | null>(
     null
   );
+  const [filters, setFilters] = useState({
+    status: "",
+  });
 
   // Use the debounce hook for search
-  const debouncedSearch = useDebounce({ value: search, delay: 250 });
+  const debouncedSearch = useDebounce({ value: dataTable.search, delay: 250 });
 
-  // Reset to first page when search changes
+  // Reset to first page when search or filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearch]);
+    dataTable.setPageIndex(0);
+  }, [debouncedSearch, filters]);
 
   const {
     data: districts,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["districts"],
-    queryFn: () => getDistricts({}),
+    queryKey: [
+      "districts",
+      filters,
+      debouncedSearch,
+      dataTable.pageIndex,
+      dataTable.pageSize,
+    ],
+    queryFn: async () => {
+      const response = await getDistricts({
+        page: dataTable.pageIndex + 1,
+        limit: dataTable.pageSize,
+        search: debouncedSearch,
+        isActive: filters.status ? filters.status === "true" : undefined,
+      });
+
+      // Handle standardized response structure
+      if (response?.data && Array.isArray(response.data)) {
+        return {
+          districts: response.data,
+          meta: response.meta || {
+            total: response.data.length,
+            totalPages: 1,
+            currentPage: 1,
+            limit: dataTable.pageSize,
+          },
+        };
+      }
+
+      return {
+        districts: response?.data || [],
+        meta: {
+          total: response?.data?.length || 0,
+          totalPages: 1,
+          currentPage: 1,
+          limit: dataTable.pageSize,
+        },
+      };
+    },
+    enabled: !!debouncedSearch || dataTable.pageIndex >= 0,
   });
 
   const filtered = useMemo(() => {
-    if (!districts?.data) return [] as District[];
-    if (!debouncedSearch) return districts.data;
-    const q = debouncedSearch.toLowerCase();
-    return districts.data.filter(
-      (d) =>
-        d.name.toLowerCase().includes(q) ||
-        (d.code && d.code.toLowerCase().includes(q)) ||
-        (d.description && d.description.toLowerCase().includes(q))
-    );
-  }, [districts?.data, debouncedSearch]);
-
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * entriesPerPage;
-    const endIndex = startIndex + entriesPerPage;
-    return filtered.slice(startIndex, endIndex);
-  }, [filtered, currentPage, entriesPerPage]);
-
-  const totalPages = Math.ceil(filtered.length / entriesPerPage);
+    if (!districts?.districts) return [] as District[];
+    return districts.districts;
+  }, [districts?.districts]);
 
   const createMut = useMutation({
     mutationFn: createDistrict,
@@ -127,13 +157,12 @@ export default function DistrictsPage() {
     setDistrictToDelete(null);
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  const handlePageChange = dataTable.setPageIndex;
+  const handleEntriesPerPageChange = dataTable.setPageSize;
 
-  const handleEntriesPerPageChange = (value: number) => {
-    setEntriesPerPage(value);
-    setCurrentPage(1); // Reset to first page
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    dataTable.setPageIndex(0); // Reset to first page when filters change
   };
 
   // Define table columns
@@ -145,8 +174,8 @@ export default function DistrictsPage() {
       cell: ({ row }) => {
         // Calculate row number based on current page and row position
         const rowNumber =
-          (currentPage - 1) * entriesPerPage +
-          paginatedData.indexOf(row.original) +
+          dataTable.pageIndex * dataTable.pageSize +
+          filtered.indexOf(row.original) +
           1;
         return (
           <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">
@@ -276,23 +305,28 @@ export default function DistrictsPage() {
                   document.body.removeChild(link);
                 }}
                 isLoading={isLoading}
+                onFilterChange={handleFilterChange}
+                filters={filters}
               />
             </div>
 
             {/* Right Side - Search */}
             <div className="lg:ml-auto">
-              <DistrictSearch searchValue={search} onSearchChange={setSearch} />
+              <DistrictSearch
+                searchValue={dataTable.search}
+                onSearchChange={dataTable.setSearch}
+              />
             </div>
           </div>
         </div>
 
         <DataTable
           columns={columns}
-          data={paginatedData}
-          total={filtered.length}
-          pageIndex={currentPage - 1}
-          pageSize={entriesPerPage}
-          pageCount={totalPages}
+          data={filtered}
+          total={districts?.meta?.total || 0}
+          pageIndex={dataTable.pageIndex}
+          pageSize={dataTable.pageSize}
+          pageCount={districts?.meta?.totalPages || 1}
           onPageSizeChange={handleEntriesPerPageChange}
           onPageChange={handlePageChange}
           loading={isLoading}

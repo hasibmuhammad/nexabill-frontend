@@ -18,12 +18,62 @@ export interface ServiceProfile {
   updatedAt: string;
 }
 
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+  statusCode: number;
+  meta?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  timestamp: string;
+}
+
+export interface ProfileListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  isActive?: boolean;
+}
+
 /**
  * Fetch all PPPoE/Service Profiles (packages) from backend
  */
 export const getPppoeProfiles = async (): Promise<ServiceProfile[]> => {
   const response = await api.get("/profiles");
   return response.data?.data || [];
+};
+
+/**
+ * Fetch PPPoE/Service Profiles with pagination and search
+ */
+export const getPppoeProfilesPaginated = async (
+  params: ProfileListParams = {}
+): Promise<ApiResponse<ServiceProfile[]>> => {
+  const searchParams = new URLSearchParams();
+
+  if (params.page) searchParams.append("page", params.page.toString());
+  if (params.limit) searchParams.append("limit", params.limit.toString());
+  if (params.search) searchParams.append("search", params.search);
+  if (params.isActive !== undefined)
+    searchParams.append("isActive", params.isActive.toString());
+
+  console.log("🔍 API Profiles - Request params:", params);
+  console.log("🔍 API Profiles - Search params:", searchParams.toString());
+
+  const response = await api.get(`/profiles?${searchParams.toString()}`);
+
+  console.log("🔍 API Profiles - Raw response:", response);
+  console.log("🔍 API Profiles - Response data:", response.data);
+  console.log(
+    "🔍 API Profiles - Response data structure:",
+    response.data?.data
+  );
+
+  return response.data;
 };
 
 // Backward-compatible alias: treat service profiles as packages in the UI

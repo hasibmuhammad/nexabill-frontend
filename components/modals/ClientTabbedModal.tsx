@@ -95,7 +95,7 @@ const initialFormData: ClientFormData = {
   // Service Info
   trackCode: `CLI-${Date.now()}`, // Auto-generated
   serviceProfileId: "",
-  clientType: "",
+  clientType: "HOME",
   billingStatus: "",
   mikrotikUsername: "",
   password: "",

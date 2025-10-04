@@ -30,6 +30,7 @@ interface ISPClient {
   billCycleDate: string;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "PENDING";
   connectionStatus: "CONNECTED" | "DISCONNECTED";
+  clientType: "HOME" | "CORPORATE";
   lastSyncAt: string | null;
   mikrotikServer: {
     id: string;
@@ -110,6 +111,7 @@ export default function ClientsPage() {
     server: "",
     status: "",
     connection: "",
+    clientType: "",
     zone: "",
     district: "",
   });
@@ -160,6 +162,7 @@ export default function ClientsPage() {
           mikrotikServerId: filters.server || undefined,
           status: filters.status || undefined,
           connectionStatus: filters.connection || undefined,
+          clientType: filters.clientType || undefined,
           // Note: Zone and District filters are not yet implemented in backend
           // zone: filters.zone || undefined,
           // district: filters.district || undefined,

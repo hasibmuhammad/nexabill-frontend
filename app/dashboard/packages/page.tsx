@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useDataTable } from "@/hooks/use-data-table";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePackageAnalytics } from "@/hooks/use-package-analytics";
 import {
@@ -20,7 +21,7 @@ import {
   createServiceProfile,
   deleteServiceProfile,
   getMonthlyPriceNumber,
-  getPppoeProfiles,
+  getPppoeProfilesPaginated,
   updateServiceProfile,
   type UpdateServiceProfileInput,
 } from "@/lib/packages";
@@ -44,11 +45,15 @@ import { PackageSearch } from "./components/PackageSearch";
 
 export default function PackagesPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const dataTable = useDataTable<ServiceProfile>({
+    initialPageSize: 10,
+    initialPageIndex: 0,
+    initialSearch: "",
+    initialSortBy: "name",
+    initialSortOrder: "asc",
+  });
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ServiceProfile | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [packageToDelete, setPackageToDelete] = useState<ServiceProfile | null>(
     null
@@ -60,46 +65,71 @@ export default function PackagesPage() {
   const [activeTab, setActiveTab] = useState<"packages" | "analytics">(
     "packages"
   );
+  const [filters, setFilters] = useState({
+    status: "",
+  });
 
   // Use the debounce hook for search
-  const debouncedSearch = useDebounce({ value: search, delay: 250 });
+  const debouncedSearch = useDebounce({ value: dataTable.search, delay: 250 });
 
-  // Reset to first page when search changes
+  // Reset to first page when search or filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearch]);
+    dataTable.setPageIndex(0);
+  }, [debouncedSearch, filters]);
 
   const {
     data: profiles,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["profiles"],
-    queryFn: getPppoeProfiles,
+    queryKey: [
+      "profiles",
+      filters,
+      debouncedSearch,
+      dataTable.pageIndex,
+      dataTable.pageSize,
+    ],
+    queryFn: async () => {
+      const response = await getPppoeProfilesPaginated({
+        page: dataTable.pageIndex + 1,
+        limit: dataTable.pageSize,
+        search: debouncedSearch,
+        isActive: filters.status ? filters.status === "true" : undefined,
+      });
+
+      // Handle standardized response structure
+      if (response?.data && Array.isArray(response.data)) {
+        return {
+          profiles: response.data,
+          meta: response.meta || {
+            total: response.data.length,
+            totalPages: 1,
+            currentPage: 1,
+            limit: dataTable.pageSize,
+          },
+        };
+      }
+
+      return {
+        profiles: response?.data || [],
+        meta: {
+          total: response?.data?.length || 0,
+          totalPages: 1,
+          currentPage: 1,
+          limit: dataTable.pageSize,
+        },
+      };
+    },
+    enabled: !!debouncedSearch || dataTable.pageIndex >= 0,
   });
 
   // Fetch package analytics for client counts
   const { data: analyticsData } = usePackageAnalytics();
 
   const filtered = useMemo(() => {
-    if (!profiles) return [] as ServiceProfile[];
-    if (!debouncedSearch) return profiles;
-    const q = debouncedSearch.toLowerCase();
-    return profiles.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.mikrotikProfile.toLowerCase().includes(q) ||
-        (p.description && p.description.toLowerCase().includes(q))
-    );
-  }, [profiles, debouncedSearch]);
-
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * entriesPerPage;
-    const endIndex = startIndex + entriesPerPage;
-    return filtered.slice(startIndex, endIndex);
-  }, [filtered, currentPage, entriesPerPage]);
-
-  const totalPages = Math.ceil(filtered.length / entriesPerPage);
+    if (!profiles?.profiles) return [] as ServiceProfile[];
+    return profiles.profiles;
+  }, [profiles?.profiles]);
 
   const createMut = useMutation({
     mutationFn: createServiceProfile,
@@ -172,13 +202,12 @@ export default function PackagesPage() {
     setPackageToDelete(null);
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  const handlePageChange = dataTable.setPageIndex;
+  const handleEntriesPerPageChange = dataTable.setPageSize;
 
-  const handleEntriesPerPageChange = (value: number) => {
-    setEntriesPerPage(value);
-    setCurrentPage(1); // Reset to first page
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    dataTable.setPageIndex(0); // Reset to first page when filters change
   };
 
   // Define table columns
@@ -190,8 +219,8 @@ export default function PackagesPage() {
       cell: ({ row }) => {
         // Calculate row number based on current page and row position
         const rowNumber =
-          (currentPage - 1) * entriesPerPage +
-          paginatedData.indexOf(row.original) +
+          dataTable.pageIndex * dataTable.pageSize +
+          filtered.indexOf(row.original) +
           1;
         return (
           <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">
@@ -394,14 +423,16 @@ export default function PackagesPage() {
                       document.body.removeChild(link);
                     }}
                     isLoading={isLoading}
+                    onFilterChange={handleFilterChange}
+                    filters={filters}
                   />
                 </div>
 
                 {/* Right Side - Search */}
                 <div className="lg:ml-auto">
                   <PackageSearch
-                    searchValue={search}
-                    onSearchChange={setSearch}
+                    searchValue={dataTable.search}
+                    onSearchChange={dataTable.setSearch}
                   />
                 </div>
               </div>
@@ -409,11 +440,11 @@ export default function PackagesPage() {
 
             <DataTable
               columns={columns}
-              data={paginatedData}
-              total={filtered.length}
-              pageIndex={currentPage - 1}
-              pageSize={entriesPerPage}
-              pageCount={totalPages}
+              data={filtered}
+              total={profiles?.meta?.total || 0}
+              pageIndex={dataTable.pageIndex}
+              pageSize={dataTable.pageSize}
+              pageCount={profiles?.meta?.totalPages || 1}
               onPageSizeChange={handleEntriesPerPageChange}
               onPageChange={handlePageChange}
               loading={isLoading}
