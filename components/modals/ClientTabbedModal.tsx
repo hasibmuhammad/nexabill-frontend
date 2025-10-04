@@ -115,6 +115,7 @@ export function ClientTabbedModal({
 }: ClientTabbedModalProps) {
   const [formData, setFormData] = useState<ClientFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<ClientFormData>>({});
+  const [currentStep, setCurrentStep] = useState(0);
 
   // Fetch packages for the dropdown
   const { data: packages = [] } = useQuery({
@@ -194,10 +195,28 @@ export function ClientTabbedModal({
           newErrors.billingStatus = "Billing status is required";
         if (!data.mikrotikUsername.trim())
           newErrors.mikrotikUsername = "Username/IP is required";
+        if (!data.password.trim()) newErrors.password = "Password is required";
         break;
     }
 
+    // Update errors state
+    setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNext = () => {
+    const currentTabId = tabs[currentStep]?.id;
+    if (validateCurrentTab(currentTabId, formData)) {
+      if (currentStep < tabs.length - 1) {
+        setCurrentStep(currentStep + 1);
+      }
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
   };
 
   const handleSubmit = () => {
@@ -217,6 +236,7 @@ export function ClientTabbedModal({
   const handleClose = () => {
     setFormData(initialFormData);
     setErrors({});
+    setCurrentStep(0);
     onClose();
   };
 
@@ -247,6 +267,30 @@ export function ClientTabbedModal({
     }
   };
 
+  const isLastStep = currentStep === tabs.length - 1;
+  const isFirstStep = currentStep === 0;
+
+  const handleTabChange = (newStep: number) => {
+    // Allow going back to any previous step without validation
+    if (newStep < currentStep) {
+      setCurrentStep(newStep);
+      return;
+    }
+
+    // For forward navigation, validate all previous steps
+    let canNavigate = true;
+    for (let i = 0; i < newStep; i++) {
+      if (!validateCurrentTab(tabs[i].id, formData)) {
+        canNavigate = false;
+        break;
+      }
+    }
+
+    if (canNavigate) {
+      setCurrentStep(newStep);
+    }
+  };
+
   return (
     <TabbedModal
       isOpen={isOpen}
@@ -255,16 +299,19 @@ export function ClientTabbedModal({
       tabs={tabs}
       height="lg"
       size="xl"
+      allowTabNavigation={true}
+      activeTab={currentStep}
+      onTabChange={handleTabChange}
       footer={{
-        cancelText: "Cancel",
-        confirmText: "Create Client",
-        onCancel: handleClose,
-        onConfirm: handleSubmit,
+        cancelText: isFirstStep ? "Cancel" : "Previous",
+        confirmText: isLastStep ? "Create Client" : "Next",
+        onCancel: isFirstStep ? handleClose : handlePrevious,
+        onConfirm: isLastStep ? handleSubmit : handleNext,
         isLoading: isLoading,
         confirmVariant: "primary",
       }}
     >
-      {renderTabContent}
+      {(activeTabIndex) => renderTabContent(currentStep)}
     </TabbedModal>
   );
 }

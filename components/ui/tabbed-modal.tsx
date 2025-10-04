@@ -33,6 +33,8 @@ interface TabbedModalProps {
   closeOnEscape?: boolean;
   closeOnOverlayClick?: boolean;
   allowTabNavigation?: boolean;
+  activeTab?: number;
+  onTabChange?: (tabIndex: number) => void;
 }
 
 export function TabbedModal({
@@ -47,8 +49,15 @@ export function TabbedModal({
   closeOnEscape = true,
   closeOnOverlayClick = true,
   allowTabNavigation = true,
+  activeTab: controlledActiveTab,
+  onTabChange,
 }: TabbedModalProps) {
-  const [activeTab, setActiveTab] = useState(0);
+  const [internalActiveTab, setInternalActiveTab] = useState(0);
+
+  // Use controlled activeTab if provided, otherwise use internal state
+  const activeTab =
+    controlledActiveTab !== undefined ? controlledActiveTab : internalActiveTab;
+  const setActiveTab = onTabChange || setInternalActiveTab;
 
   // Handle escape key
   useEffect(() => {
@@ -132,7 +141,7 @@ export function TabbedModal({
   };
 
   const handleTabClick = (tabIndex: number) => {
-    if (!tabs[tabIndex]?.disabled) {
+    if (!tabs[tabIndex]?.disabled && allowTabNavigation) {
       setActiveTab(tabIndex);
     }
   };

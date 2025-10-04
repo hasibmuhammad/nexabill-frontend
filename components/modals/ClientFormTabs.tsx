@@ -143,6 +143,7 @@ export function BasicInfoTab({
           {/* NID/Birth Certificate No */}
           <div>
             <Input
+              type="number"
               required
               label="NID/Birth Certificate No"
               placeholder="Enter NID or Birth Certificate number"
@@ -155,6 +156,7 @@ export function BasicInfoTab({
           {/* Registration Form No */}
           <div>
             <Input
+              type="number"
               label="Registration Form No"
               placeholder="Enter registration form number"
               value={formData.registrationFormNo}
@@ -264,6 +266,7 @@ export function ContactInfoTab({
           {/* Mobile Number */}
           <div>
             <Input
+              type="number"
               required
               label="Mobile Number"
               placeholder="+880 1XXX XXXXXX"
@@ -335,7 +338,7 @@ export function ContactInfoTab({
                 <Input
                   label="Longitude"
                   type="text"
-                  placeholder="Longitude (e.g., 10.30.30.40)"
+                  placeholder="Longitude (e.g., 90.3655149 or full coordinate string)"
                   value={formData.longitude || ""}
                   onChange={(e) =>
                     handleInputChange("longitude", e.target.value)
@@ -345,7 +348,8 @@ export function ContactInfoTab({
             </div>
             <p className="mt-1 text-xs text-slate-500">
               <MapPin className="h-3 w-3 inline mr-1" />
-              Location coordinates in IP-like format (e.g., 10.30.30.40)
+              Location coordinates - can be decimal numbers, IP-like format, or
+              full coordinate strings
             </p>
           </div>
 
@@ -751,10 +755,12 @@ export function ServiceInfoTab({
           {/* Password */}
           <div>
             <PasswordInput
+              required
               label="Password"
               placeholder="Enter password"
               value={formData.password}
               onChange={(e) => handleInputChange("password", e.target.value)}
+              error={errors.password}
             />
           </div>
 
