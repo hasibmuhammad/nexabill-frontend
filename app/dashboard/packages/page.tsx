@@ -800,7 +800,7 @@ function ProfileForm({
             clearError("mikrotikProfile");
           }}
           error={errors.mikrotikProfile}
-          disabled={submitting}
+          disabled={true}
         />
       </div>
 
