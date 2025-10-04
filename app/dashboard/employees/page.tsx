@@ -515,7 +515,9 @@ function EmployeeForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Select
           required
+          showSearch={false}
           label="Designation"
+          position="top"
           value={formState.designation}
           onChange={(v) => {
             handleUpdateFormData("designation", v as Employee["designation"]);
@@ -528,6 +530,8 @@ function EmployeeForm({
           error={errors.designation}
         />
         <Select
+          showSearch={false}
+          position="top"
           label="Status"
           value={formState.status}
           onChange={(v) =>
