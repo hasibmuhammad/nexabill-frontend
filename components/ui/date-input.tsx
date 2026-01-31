@@ -92,13 +92,6 @@ export const DateInput: React.FC<DateInputProps> = ({
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
-  // Ensure default to today if no value provided
-  useEffect(() => {
-    if (!value) {
-      onChange(initialDate.format("YYYY-MM-DD"));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const selected = value ? moment(value, "YYYY-MM-DD") : initialDate;
 

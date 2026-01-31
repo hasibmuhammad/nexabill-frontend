@@ -6,10 +6,13 @@ import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { uploadApi } from "@/lib/api-upload";
 import { organizationSchema, type OrganizationFormValues } from "@/lib/schemas/organization";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "react-hot-toast";
 
 interface Organization {
   id?: string;
@@ -25,6 +28,12 @@ interface Organization {
   subscriptionEndsAt?: string;
   settings?: any;
   features?: any;
+  licenseNumber?: string;
+  binNumber?: string;
+  tinNumber?: string;
+  ispCategory?: string;
+  username?: string;
+  password?: string;
 }
 
 interface OrganizationFormProps {
@@ -61,28 +70,37 @@ export function OrganizationForm({
       phone: "",
       address: "",
       logo: "",
-      plan: "TRIAL",
-      status: "TRIAL",
+      plan: "" as any,
+      status: "" as any,
       trialEndsAt: "",
       subscriptionEndsAt: "",
       settings: {
-        maxClients: 100,
-        maxUsers: 5,
-        maxMikrotikServers: 3,
+        maxClients: "" as any,
+        maxUsers: "" as any,
+        maxMikrotikServers: "" as any,
       },
       features: {
-        analytics: true,
-        reports: true,
-        billing: true,
-        clientManagement: true,
+        analytics: false,
+        reports: false,
+        billing: false,
+        clientManagement: false,
       },
+      licenseNumber: "",
+      binNumber: "",
+      tinNumber: "",
+      ispCategory: "",
+      username: "",
+      password: "",
     },
   });
+
+  const [isUploading, setIsUploading] = useState(false);
 
   const logo = watch("logo");
   const name = watch("name");
   const plan = watch("plan");
   const status = watch("status");
+  const ispCategory = watch("ispCategory");
 
   // Auto-generate slug from name
   useEffect(() => {
@@ -107,8 +125,8 @@ export function OrganizationForm({
         phone: organization.phone || "",
         address: organization.address || "",
         logo: organization.logo || "",
-        plan: (organization.plan as any) || "TRIAL",
-        status: (organization.status as any) || "TRIAL",
+        plan: (organization.plan as any) || "",
+        status: (organization.status as any) || "",
         trialEndsAt: organization.trialEndsAt
           ? new Date(organization.trialEndsAt).toISOString().slice(0, 10)
           : "",
@@ -116,16 +134,22 @@ export function OrganizationForm({
           ? new Date(organization.subscriptionEndsAt).toISOString().slice(0, 10)
           : "",
         settings: organization.settings || {
-          maxClients: 100,
-          maxUsers: 5,
-          maxMikrotikServers: 3,
+          maxClients: "" as any,
+          maxUsers: "" as any,
+          maxMikrotikServers: "" as any,
         },
         features: organization.features || {
-          analytics: true,
-          reports: true,
-          billing: true,
-          clientManagement: true,
+          analytics: false,
+          reports: false,
+          billing: false,
+          clientManagement: false,
         },
+        licenseNumber: organization.licenseNumber || "",
+        binNumber: organization.binNumber || "",
+        tinNumber: organization.tinNumber || "",
+        ispCategory: organization.ispCategory || "",
+        username: organization.username || "",
+        password: "",
       });
     }
   }, [organization, reset]);
@@ -183,37 +207,82 @@ export function OrganizationForm({
                 placeholder="+8801712345678"
                 error={errors.phone?.message}
               />
+              {!organization?.id && (
+                <>
+                  <Input
+                    label="Username"
+                    required
+                    {...register("username")}
+                    placeholder="Enter system username"
+                    error={errors.username?.message}
+                  />
+                  <Input
+                    label="Password"
+                    required
+                    type="password"
+                    {...register("password")}
+                    placeholder="Enter system password"
+                    error={errors.password?.message}
+                  />
+                </>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Logo
               </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-lg hover:border-slate-400 dark:hover:border-slate-500 transition-colors duration-200">
+              <div 
+                className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors duration-200 ${
+                  !name 
+                    ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 cursor-not-allowed opacity-60" 
+                    : "border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 cursor-pointer"
+                }`}
+              >
                 <div className="space-y-1 text-center">
                   <div className="flex text-sm text-slate-600 dark:text-slate-400">
                     <label
                       htmlFor="logo-upload"
-                      className="relative cursor-pointer bg-white dark:bg-slate-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                      className={`relative rounded-md font-medium text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 ${
+                        !name ? "cursor-not-allowed" : "cursor-pointer hover:text-blue-500"
+                      }`}
                     >
-                      <span>Upload a file</span>
+                      {isUploading ? (
+                        <div className="flex items-center space-x-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Uploading...</span>
+                        </div>
+                      ) : (
+                        <span>Upload a file</span>
+                      )}
                       <input
                         id="logo-upload"
                         name="logo-upload"
                         type="file"
                         className="sr-only"
                         accept="image/*"
-                        onChange={(e) => {
+                        disabled={!name || isUploading}
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
-                          if (file) {
-                            setValue("logo", file);
+                          if (file && name) {
+                            try {
+                              setIsUploading(true);
+                              const response = await uploadApi.uploadImage(file, name);
+                              setValue("logo", response.src, { shouldDirty: true });
+                              toast.success("Logo uploaded successfully");
+                            } catch (error) {
+                              toast.error("Failed to upload logo");
+                              console.error(error);
+                            } finally {
+                              setIsUploading(false);
+                            }
                           }
                         }}
                       />
                     </label>
-                    <p className="pl-1">or drag and drop</p>
+                    {!isUploading && <p className="pl-1">or drag and drop</p>}
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    PNG, JPG, GIF up to 10MB
+                    {!name ? "Please enter organization name first" : "PNG, JPG, GIF up to 10MB"}
                   </p>
                 </div>
               </div>
@@ -317,6 +386,51 @@ export function OrganizationForm({
                     error={errors.subscriptionEndsAt?.message}
                   />
                 )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ISP / Business Details */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Business Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="License Number"
+                {...register("licenseNumber")}
+                placeholder="ISP-12345"
+                error={errors.licenseNumber?.message}
+              />
+              <Input
+                label="BIN Number"
+                {...register("binNumber")}
+                placeholder="123456789"
+                error={errors.binNumber?.message}
+              />
+              <Input
+                label="TIN Number"
+                {...register("tinNumber")}
+                placeholder="987654321"
+                error={errors.tinNumber?.message}
+              />
+              <Select
+                label="ISP Category"
+                value={ispCategory}
+                onChange={(value) => setValue("ispCategory", value)}
+                options={[
+                  { value: "NATIONWIDE", label: "Nationwide" },
+                  { value: "DIVISIONAL", label: "Divisional" },
+                  { value: "ZONAL", label: "Zonal" },
+                  { value: "CATEGORY_A", label: "Category A" },
+                  { value: "CATEGORY_B", label: "Category B" },
+                  { value: "CATEGORY_C", label: "Category C" },
+                ]}
+                placeholder="Select ISP Category"
+                showSearch={false}
+                error={errors.ispCategory?.message}
               />
             </div>
           </CardContent>

@@ -24,6 +24,13 @@ export interface Organization {
     billing: boolean;
     clientManagement: boolean;
   };
+  licenseNumber?: string;
+  binNumber?: string;
+  tinNumber?: string;
+  ispCategory?: string;
+  clientPrefix?: string;
+  currency?: string;
+  timezone?: string;
   createdAt: string;
   updatedAt: string;
   _count: {
@@ -57,6 +64,13 @@ export interface CreateOrganizationDto {
     billing: boolean;
     clientManagement: boolean;
   };
+  licenseNumber?: string;
+  binNumber?: string;
+  tinNumber?: string;
+  ispCategory?: string;
+  clientPrefix?: string;
+  currency?: string;
+  timezone?: string;
 }
 
 export interface UpdateOrganizationDto extends Partial<CreateOrganizationDto> {}
