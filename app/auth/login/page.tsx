@@ -23,8 +23,9 @@ export default function LoginPage() {
     login,
     isAuthenticated,
     isLoading: authLoading,
+    getRedirectPath,
   } = useAuth();
-
+  
   const {
     register,
     handleSubmit,
@@ -37,9 +38,9 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.push("/dashboard");
+      router.push(getRedirectPath());
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router, getRedirectPath]);
 
   // Auto-fill form when demo credentials are selected
   useEffect(() => {
@@ -64,18 +65,8 @@ export default function LoginPage() {
       const userData = await login(data.email, data.password);
       toast.success("Login successful!");
 
-      // Debug: Log the user data to see what role we're getting
-      console.log("Login successful, user data:", userData);
-      console.log("User role:", userData.role);
-
-      // Redirect based on user role using the returned user data
-      if (userData.role === "SUPER_ADMIN") {
-        console.log("Redirecting to super-admin");
-        router.push("/super-admin");
-      } else {
-        console.log("Redirecting to dashboard");
-        router.push("/dashboard");
-      }
+      // Use getRedirectPath() based on the current user state
+      router.push(getRedirectPath());
     } catch (error: any) {
       toast.error(error.message || "Login failed");
     } finally {
