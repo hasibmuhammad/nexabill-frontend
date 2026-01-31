@@ -10,15 +10,18 @@ import { Select } from "@/components/ui/select";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
-  createEmployee,
-  deleteEmployee,
-  getEmployees,
-  updateEmployee,
-  type Employee as ApiEmployee,
+    createEmployee,
+    deleteEmployee,
+    getEmployees,
+    updateEmployee,
+    type Employee as ApiEmployee,
 } from "@/lib/api-employees";
+import { employeeSchema, type EmployeeFormValues } from "@/lib/schemas/employee";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { EmployeeSearch } from "./components/EmployeeSearch";
 import { EmployeesFilters } from "./components/EmployeesFilters";
@@ -366,31 +369,22 @@ export default function EmployeesPage() {
               setEditing(null);
             }}
             onSubmit={(values) => {
+              const data = {
+                name: values.name,
+                email: values.email || undefined,
+                phone: values.phone,
+                designation: values.designation,
+                salary: values.salary,
+                isActive: values.status === "ACTIVE",
+              };
+
               if (editing) {
                 updateMut.mutate({
                   id: editing.id,
-                  data: {
-                    name: values.name,
-                    email: values.email,
-                    phone: values.phone,
-                    designation: values.designation,
-                    salary: values.salary,
-                    isActive: values.status
-                      ? values.status === "ACTIVE"
-                      : undefined,
-                  },
+                  data,
                 });
               } else {
-                createMut.mutate({
-                  name: values.name,
-                  email: values.email,
-                  phone: values.phone || "",
-                  designation: values.designation,
-                  salary: values.salary,
-                  isActive: values.status
-                    ? values.status === "ACTIVE"
-                    : undefined,
-                });
+                createMut.mutate(data);
               }
             }}
           />
@@ -424,92 +418,87 @@ function EmployeeForm({
 }: {
   initial?: Employee;
   onCancel: () => void;
-  onSubmit: (
-    values: Omit<Employee, "id" | "status"> & { status?: Employee["status"] }
-  ) => void;
+  onSubmit: (values: EmployeeFormValues) => void;
 }) {
-  const isCreate = !initial;
-  const [formState, setFormState] = useState({
-    name: initial?.name || "",
-    email: initial?.email || "",
-    phone: initial?.phone || "",
-    salary: initial?.salary || "",
-    designation: initial?.designation || "",
-    status: (initial?.status || "ACTIVE") as Employee["status"],
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<EmployeeFormValues>({
+    resolver: zodResolver(employeeSchema),
+    defaultValues: {
+      name: initial?.name || "",
+      email: initial?.email || "",
+      phone: initial?.phone || "",
+      salary: initial?.salary || "",
+      designation: initial?.designation || ("" as any),
+      status: (initial?.status || "ACTIVE") as any,
+    },
   });
-  const [errors, setErrors] = useState<{
-    name?: string;
-    phone?: string;
-    salary?: string;
-    designation?: string;
-  }>(() => ({}));
 
-  const validate = () => {
-    const errs: typeof errors = {};
-    if (!formState.name.trim()) errs.name = "Name is required";
-    if (!formState.phone.trim()) errs.phone = "Phone is required";
-    if (!formState.designation) errs.designation = "Designation is required";
-    if (!formState.salary) errs.salary = "Salary is required";
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
+  const designation = watch("designation");
+  const status = watch("status");
 
-  const handleUpdateFormData = (key: keyof typeof formState, value: string) => {
-    setFormState((p) => ({ ...p, [key]: value }));
-    setErrors((p) => ({ ...p, [key]: undefined }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSubmit({
-      name: formState.name.trim(),
-      email: formState.email.trim(),
-      phone: formState.phone.trim() || undefined,
-      designation: formState.designation as Employee["designation"],
-      salary: (formState as any).salary
-        ? String(Number((formState as any).salary))
-        : undefined,
-      status: formState.status,
-    });
-  };
+  useEffect(() => {
+    if (initial) {
+      reset({
+        name: initial.name || "",
+        email: initial.email || "",
+        phone: initial.phone || "",
+        salary: initial.salary || "",
+        designation: initial.designation as any,
+        status: (initial.status || "ACTIVE") as any,
+      });
+    } else {
+      reset({
+        name: "",
+        email: "",
+        phone: "",
+        salary: "",
+        designation: "" as any,
+        status: "ACTIVE",
+      });
+    }
+  }, [initial, reset]);
 
   return (
-    <form id="employee-form" onSubmit={handleSubmit} className="space-y-4">
+    <form
+      id="employee-form"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-4"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
           label="Name"
           required
-          value={formState.name}
-          onChange={(e) => handleUpdateFormData("name", e.target.value)}
-          error={errors.name}
+          {...register("name")}
+          error={errors.name?.message}
         />
         <Input
-          type="number"
+          type="text"
           required
           label="Phone"
-          value={formState.phone}
-          onChange={(e) => handleUpdateFormData("phone", e.target.value)}
-          error={errors.phone}
+          {...register("phone")}
+          error={errors.phone?.message}
         />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
           label="Email"
           type="email"
-          value={formState.email}
-          onChange={(e) => handleUpdateFormData("email", e.target.value)}
-          error={errors.phone}
+          {...register("email")}
+          error={errors.email?.message}
         />
         <Input
           required
           label="Salary (৳)"
-          type="number"
-          value={(formState as any).salary || ""}
-          onChange={(e) => handleUpdateFormData("salary", e.target.value)}
+          type="text"
+          {...register("salary")}
           placeholder="e.g., 30000"
-          min={0}
-          error={errors.salary}
+          error={errors.salary?.message}
         />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -518,25 +507,23 @@ function EmployeeForm({
           showSearch={false}
           label="Designation"
           position="top"
-          value={formState.designation}
+          value={designation}
           onChange={(v) => {
-            handleUpdateFormData("designation", v as Employee["designation"]);
+            setValue("designation", v as any);
           }}
           options={[
             { value: "ENGINEER", label: "Engineer" },
             { value: "TECHNICIAN", label: "Technician" },
             { value: "BILL_COLLECTOR", label: "Bill Collector" },
           ]}
-          error={errors.designation}
+          error={errors.designation?.message}
         />
         <Select
           showSearch={false}
           position="top"
           label="Status"
-          value={formState.status}
-          onChange={(v) =>
-            handleUpdateFormData("status", v as Employee["status"])
-          }
+          value={status}
+          onChange={(v) => setValue("status", v as any)}
           options={[
             { value: "ACTIVE", label: "Active" },
             { value: "INACTIVE", label: "Inactive" },

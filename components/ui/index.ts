@@ -11,6 +11,7 @@ export {
   type Row,
   type TableState,
 } from "./data-table";
+export { DropdownMenu } from "./dropdown-menu";
 export { Input } from "./input";
 export { Modal } from "./modal";
 export {

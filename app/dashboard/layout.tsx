@@ -137,7 +137,12 @@ export default function DashboardLayout({
     if (!isLoading && !isAuthenticated) {
       router.push("/auth/login");
     }
-  }, [isLoading, isAuthenticated, router]);
+
+    // Redirect super admin users to admin panel
+    if (!isLoading && isAuthenticated && user?.role === "SUPER_ADMIN") {
+      router.push("/admin");
+    }
+  }, [isLoading, isAuthenticated, user?.role, router]);
 
   const handleLogout = async () => {
     await logout();

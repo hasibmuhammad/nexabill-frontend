@@ -20,9 +20,12 @@ import {
   type District,
   type UpdateDistrictDto,
 } from "@/lib/api-districts";
+import { districtSchema, type DistrictFormValues } from "@/lib/schemas/district";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Edit, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 
 export default function DistrictsPage() {
@@ -407,134 +410,86 @@ function DistrictForm({
 }: {
   initial?: District;
   onCancel: () => void;
-  onSubmit: (values: {
-    name: string;
-    code?: string;
-    description?: string;
-    isActive?: boolean;
-  }) => void;
+  onSubmit: (values: DistrictFormValues) => void;
   submitting?: boolean;
 }) {
-  const isCreate = !initial;
-
-  // Single form state object
-  const [formState, setFormState] = useState({
-    name: initial?.name || "",
-    code: initial?.code || "",
-    description: initial?.description || "",
-    isActive: initial?.isActive ?? true,
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<DistrictFormValues>({
+    resolver: zodResolver(districtSchema),
+    defaultValues: {
+      name: initial?.name || "",
+      code: initial?.code || "",
+      description: initial?.description || "",
+      isActive: initial?.isActive ?? true,
+    },
   });
 
-  // Validation state
-  const [errors, setErrors] = useState<{
-    name?: string;
-    code?: string;
-    description?: string;
-  }>({});
+  const isActive = watch("isActive");
 
-  // Reset form when initial prop changes (switching between create/edit modes)
+  // Reset form when initial prop changes
   useEffect(() => {
     if (initial) {
-      setFormState({
+      reset({
         name: initial.name || "",
         code: initial.code || "",
         description: initial.description || "",
         isActive: initial.isActive ?? true,
       });
     } else {
-      // Reset to defaults for create mode
-      setFormState({
+      reset({
         name: "",
         code: "",
         description: "",
         isActive: true,
       });
     }
-    // Clear errors when switching modes
-    setErrors({});
-  }, [initial]);
-
-  const validateForm = () => {
-    const newErrors: typeof errors = {};
-
-    if (!formState.name.trim()) {
-      newErrors.name = "Name is required";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    onSubmit({
-      name: formState.name.trim(),
-      code: formState.code?.trim() || undefined,
-      description: formState.description?.trim() || undefined,
-      isActive: formState.isActive,
-    });
-  };
-
-  const statusOptions = [
-    { value: "ACTIVE", label: "Active" },
-    { value: "INACTIVE", label: "Inactive" },
-  ];
-
-  // Simple error clearing function
-  const clearError = (key: keyof typeof errors) => {
-    setErrors((prev) => ({ ...prev, [key]: undefined }));
-  };
+  }, [initial, reset]);
 
   return (
-    <form id="district-form" onSubmit={handleSubmit} className="space-y-4">
+    <form
+      id="district-form"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-4"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
           label="Name"
           required
           type="text"
-          value={formState.name}
-          onChange={(e) => {
-            setFormState((prev) => ({ ...prev, name: e.target.value }));
-            clearError("name");
-          }}
-          error={errors.name}
+          {...register("name")}
+          error={errors.name?.message}
           disabled={submitting}
         />
         <Input
           label="Code"
           type="text"
-          value={formState.code}
-          onChange={(e) => {
-            setFormState((prev) => ({ ...prev, code: e.target.value }));
-            clearError("code");
-          }}
-          error={errors.code}
+          {...register("code")}
+          error={errors.code?.message}
           disabled={submitting}
         />
       </div>
 
       <Select
         label="Status"
-        options={statusOptions}
-        value={formState.isActive ? "ACTIVE" : "INACTIVE"}
-        onChange={(value) =>
-          setFormState((prev) => ({ ...prev, isActive: value === "ACTIVE" }))
-        }
+        options={[
+          { value: "ACTIVE", label: "Active" },
+          { value: "INACTIVE", label: "Inactive" },
+        ]}
+        value={isActive ? "ACTIVE" : "INACTIVE"}
+        onChange={(value) => setValue("isActive", value === "ACTIVE")}
         disabled={submitting}
       />
 
       <Textarea
         label="Description"
-        value={formState.description || ""}
-        onChange={(e) => {
-          setFormState((prev) => ({ ...prev, description: e.target.value }));
-          clearError("description");
-        }}
+        {...register("description")}
+        error={errors.description?.message}
         placeholder="Optional description"
         disabled={submitting}
         rows={3}

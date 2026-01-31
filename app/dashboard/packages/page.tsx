@@ -25,6 +25,8 @@ import {
   updateServiceProfile,
   type UpdateServiceProfileInput,
 } from "@/lib/packages";
+import { packageSchema, type PackageFormValues } from "@/lib/schemas/package";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3,
@@ -36,6 +38,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { AssignButtonWithBadge } from "./components/AssignButtonWithBadge";
 import { PackageAnalytics } from "./components/PackageAnalytics";
@@ -534,6 +537,11 @@ export default function PackagesPage() {
   );
 }
 
+interface ProfileFormValues extends PackageFormValues {
+  serverId?: string;
+  selectedMtProfile?: string;
+}
+
 function ProfileForm({
   initial,
   onCancel,
@@ -542,37 +550,34 @@ function ProfileForm({
 }: {
   initial?: ServiceProfile;
   onCancel: () => void;
-  onSubmit: (values: {
-    name: string;
-    mikrotikProfile: string;
-    monthlyPrice: string;
-    description?: string;
-    isActive?: boolean;
-  }) => void;
+  onSubmit: (values: PackageFormValues) => void;
   submitting?: boolean;
 }) {
   const isCreate = !initial;
 
-  // Single form state object
-  const [formState, setFormState] = useState({
-    name: initial?.name || "",
-    mikrotikProfile: initial?.mikrotikProfile || "",
-    monthlyPrice: initial?.monthlyPrice || "",
-    description: initial?.description || "",
-    isActive: initial?.isActive ?? true,
-    serverId: "",
-    selectedMtProfile: "",
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(packageSchema),
+    defaultValues: {
+      name: initial?.name || "",
+      mikrotikProfile: initial?.mikrotikProfile || "",
+      monthlyPrice: initial?.monthlyPrice || "",
+      description: initial?.description || "",
+      isActive: initial?.isActive ?? true,
+      serverId: "",
+      selectedMtProfile: "",
+    },
   });
 
-  // Validation state
-  const [errors, setErrors] = useState<{
-    name?: string;
-    mikrotikProfile?: string;
-    monthlyPrice?: string;
-    serverId?: string;
-    selectedMtProfile?: string;
-    description?: string;
-  }>({});
+  const serverId = watch("serverId");
+  const selectedMtProfile = watch("selectedMtProfile");
+  const isActive = watch("isActive");
 
   const { data: servers } = useQuery({
     queryKey: ["mt-servers"],
@@ -580,13 +585,13 @@ function ProfileForm({
   }) as { data: MikrotikServer[] | undefined };
 
   const { data: mtProfilesResp } = useQuery({
-    queryKey: ["mt-profiles", formState.serverId],
+    queryKey: ["mt-profiles", serverId],
     queryFn: async () => {
-      if (!formState.serverId) return null as any;
-      const res = await getProfilesFromMikrotik(formState.serverId);
+      if (!serverId) return null as any;
+      const res = await getProfilesFromMikrotik(serverId);
       return res;
     },
-    enabled: !!formState.serverId,
+    enabled: !!serverId,
   }) as {
     data:
       | { profiles?: Array<{ name: string; [key: string]: any }> }
@@ -597,22 +602,21 @@ function ProfileForm({
   const mtProfiles: Array<{ name: string; [key: string]: any }> =
     mtProfilesResp?.profiles ?? [];
 
-  // Reset form when initial prop changes (switching between create/edit modes)
+  // Reset form when initial prop changes
   useEffect(() => {
     if (initial) {
-      setFormState({
+      reset({
         name: initial.name || "",
         mikrotikProfile: initial.mikrotikProfile || "",
         monthlyPrice: initial.monthlyPrice || "",
         description: initial.description || "",
         isActive: initial.isActive ?? true,
-        serverId: "", // Reset serverId when switching to edit mode
-        selectedMtProfile: "", // Reset selectedMtProfile when switching to edit mode
+        serverId: "",
+        selectedMtProfile: "",
       });
 
       // For editing, try to find the server that contains this profile
       if (initial.mikrotikProfile && servers) {
-        // Find server that has this profile
         const findServerWithProfile = async () => {
           for (const server of servers) {
             try {
@@ -623,15 +627,11 @@ function ProfileForm({
                     p.name === initial.mikrotikProfile
                 )
               ) {
-                setFormState((prev) => ({ ...prev, serverId: server.id }));
-                setFormState((prev) => ({
-                  ...prev,
-                  selectedMtProfile: initial.mikrotikProfile,
-                }));
+                setValue("serverId", server.id);
+                setValue("selectedMtProfile", initial.mikrotikProfile);
                 break;
               }
             } catch (error) {
-              // Continue to next server if this one fails
               continue;
             }
           }
@@ -639,8 +639,7 @@ function ProfileForm({
         findServerWithProfile();
       }
     } else {
-      // Reset to defaults for create mode
-      setFormState({
+      reset({
         name: "",
         mikrotikProfile: "",
         monthlyPrice: "",
@@ -650,122 +649,55 @@ function ProfileForm({
         selectedMtProfile: "",
       });
     }
-    // Clear errors when switching modes
-    setErrors({});
-  }, [initial, servers]);
+  }, [initial, reset, servers, setValue]);
 
-  const validateForm = () => {
-    const newErrors: typeof errors = {};
-
-    if (!formState.name.trim()) {
-      newErrors.name = "Name is required";
-    }
-
-    if (!formState.mikrotikProfile.trim()) {
-      newErrors.mikrotikProfile = "Mikrotik Profile is required";
-    }
-
-    if (!formState.monthlyPrice.trim()) {
-      newErrors.monthlyPrice = "Monthly Price is required";
-    } else if (
-      isNaN(Number(formState.monthlyPrice)) ||
-      Number(formState.monthlyPrice) < 0
-    ) {
-      newErrors.monthlyPrice = "Monthly Price must be a valid positive number";
-    }
-
-    if (isCreate) {
-      if (!formState.serverId) {
-        newErrors.serverId = "Server selection is required";
-      }
-      if (!formState.selectedMtProfile) {
-        newErrors.selectedMtProfile = "Profile selection is required";
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    onSubmit({
-      name: formState.name.trim(),
-      mikrotikProfile: formState.mikrotikProfile.trim(),
-      monthlyPrice: formState.monthlyPrice.trim(),
-      description: formState.description?.trim() || undefined,
-      isActive: formState.isActive,
-    });
-  };
-
-  const serverOptions =
-    servers?.map((s) => ({
-      value: s.id,
-      label: s.name,
-    })) || [];
-
-  const profileOptions = mtProfiles.map((p) => ({
-    value: p.name,
-    label: p.name,
-  }));
-
-  const statusOptions = [
-    { value: "ACTIVE", label: "Active" },
-    { value: "INACTIVE", label: "Inactive" },
-  ];
-
-  // Simple error clearing function
-  const clearError = (key: keyof typeof errors) => {
-    setErrors((prev) => ({ ...prev, [key]: undefined }));
-  };
-
-  const handleInputChange = (key: keyof typeof errors) => {
-    // need to
+  const onFormSubmit = (data: ProfileFormValues) => {
+    const { serverId: _s, selectedMtProfile: _p, ...submissionData } = data;
+    onSubmit(submissionData);
   };
 
   return (
-    <form id="package-form" onSubmit={handleSubmit} className="space-y-4">
-      {/* Build from Mikrotik profile (optional) */}
+    <form
+      id="package-form"
+      onSubmit={handleSubmit(onFormSubmit)}
+      className="space-y-4"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
         <Select
           label="Mikrotik Server"
           required={isCreate}
-          options={serverOptions}
+          options={
+            servers?.map((s) => ({
+              value: s.id,
+              label: s.name,
+            })) || []
+          }
           placeholder="Select a server"
-          value={formState.serverId}
+          value={serverId || ""}
           onChange={(value) => {
-            setFormState((prev) => ({ ...prev, serverId: value }));
-            setFormState((prev) => ({ ...prev, selectedMtProfile: "" }));
-            clearError("serverId");
-            clearError("selectedMtProfile");
+            setValue("serverId", value);
+            setValue("selectedMtProfile", "");
           }}
-          error={errors.serverId}
           disabled={submitting}
         />
         <Select
           label="PPPoE Profile"
           required={isCreate}
-          options={profileOptions}
+          options={mtProfiles.map((p) => ({
+            value: p.name,
+            label: p.name,
+          }))}
           placeholder="Select a profile"
-          value={formState.selectedMtProfile}
+          value={selectedMtProfile || ""}
           onChange={(value) => {
-            setFormState((prev) => ({
-              ...prev,
-              selectedMtProfile: value,
-              mikrotikProfile: value,
-              name: prev.name || value,
-            }));
-            clearError("selectedMtProfile");
-            clearError("mikrotikProfile");
-            clearError("name");
+            setValue("selectedMtProfile", value);
+            setValue("mikrotikProfile", value);
+            // Pre-fill name if empty
+            if (!watch("name")) {
+              setValue("name", value);
+            }
           }}
-          error={errors.selectedMtProfile}
-          disabled={!formState.serverId || submitting}
+          disabled={!serverId || submitting}
         />
       </div>
 
@@ -779,62 +711,42 @@ function ProfileForm({
           label="Name"
           required
           type="text"
-          value={formState.name}
-          onChange={(e) => {
-            setFormState((prev) => ({ ...prev, name: e.target.value }));
-            clearError("name");
-          }}
-          error={errors.name}
+          {...register("name")}
+          error={errors.name?.message}
           disabled={submitting}
         />
         <Input
           label="Mikrotik Profile"
           required
           type="text"
-          value={formState.mikrotikProfile}
-          onChange={(e) => {
-            setFormState((prev) => ({
-              ...prev,
-              mikrotikProfile: e.target.value,
-            }));
-            clearError("mikrotikProfile");
-          }}
-          error={errors.mikrotikProfile}
-          disabled={true}
+          {...register("mikrotikProfile")}
+          error={errors.mikrotikProfile?.message}
+          disabled={submitting}
+        />
+        <Input
+          label="Monthly Price"
+          required
+          type="text"
+          {...register("monthlyPrice")}
+          error={errors.monthlyPrice?.message}
+          disabled={submitting}
+        />
+        <Select
+          label="Status"
+          options={[
+            { value: "ACTIVE", label: "Active" },
+            { value: "INACTIVE", label: "Inactive" },
+          ]}
+          value={isActive ? "ACTIVE" : "INACTIVE"}
+          onChange={(value) => setValue("isActive", value === "ACTIVE")}
+          disabled={submitting}
         />
       </div>
 
-      <Input
-        label="Monthly Price (৳)"
-        required
-        type="number"
-        value={formState.monthlyPrice}
-        onChange={(e) => {
-          setFormState((prev) => ({ ...prev, monthlyPrice: e.target.value }));
-          clearError("monthlyPrice");
-        }}
-        placeholder="e.g., 800.00"
-        error={errors.monthlyPrice}
-        disabled={submitting}
-      />
-
-      <Select
-        label="Status"
-        options={statusOptions}
-        value={formState.isActive ? "ACTIVE" : "INACTIVE"}
-        onChange={(value) =>
-          setFormState((prev) => ({ ...prev, isActive: value === "ACTIVE" }))
-        }
-        disabled={submitting}
-      />
-
       <Textarea
-        label="Description"
-        value={formState.description || ""}
-        onChange={(e) => {
-          setFormState((prev) => ({ ...prev, description: e.target.value }));
-          clearError("description");
-        }}
+        label="Description (Optional)"
+        {...register("description")}
+        error={errors.description?.message}
         placeholder="Optional description"
         disabled={submitting}
         rows={3}

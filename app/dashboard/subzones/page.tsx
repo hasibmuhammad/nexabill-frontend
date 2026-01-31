@@ -12,19 +12,21 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
-  createSubzone,
-  deleteSubzone,
-  getSubzones,
-  toggleSubzoneStatus,
-  updateSubzone,
-  type CreateSubzoneDto,
-  type Subzone,
-  type UpdateSubzoneDto,
+    createSubzone,
+    deleteSubzone,
+    getSubzones,
+    toggleSubzoneStatus,
+    updateSubzone,
+    type Subzone,
+    type UpdateSubzoneDto
 } from "@/lib/api-subzones";
 import { getZones } from "@/lib/api-zones";
+import { subzoneSchema, type SubzoneFormValues } from "@/lib/schemas/subzone";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calendar, Edit, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { SubzonesFilters } from "./components/SubzonesFilters";
 
@@ -42,18 +44,6 @@ export default function SubzonesPage() {
   const [zoneFilter, setZoneFilter] = useState<string>("ALL");
 
   const queryClient = useQueryClient();
-
-  // Form state
-  const [formData, setFormData] = useState<CreateSubzoneDto>({
-    name: "",
-    description: "",
-    zoneId: "",
-  });
-  const [errors, setErrors] = useState<{
-    name?: string;
-    description?: string;
-    zoneId?: string;
-  }>({});
 
   // Fetch zones for dropdown
   const {
@@ -93,7 +83,6 @@ export default function SubzonesPage() {
     onSuccess: () => {
       toast.success("Subzone created successfully!");
       setShowAddForm(false);
-      resetForm();
       queryClient.invalidateQueries({ queryKey: ["subzones"] });
     },
     onError: (error: any) => {
@@ -108,7 +97,6 @@ export default function SubzonesPage() {
       toast.success("Subzone updated successfully!");
       setShowEditForm(false);
       setSelectedSubzone(null);
-      resetForm();
       queryClient.invalidateQueries({ queryKey: ["subzones"] });
     },
     onError: (error: any) => {
@@ -142,53 +130,23 @@ export default function SubzonesPage() {
     },
   });
 
-  // Reset form
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      zoneId: "",
-    });
-    setErrors({});
-  };
+  // No-op
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: typeof errors = {};
-    if (!formData.name || !formData.name.trim()) {
-      newErrors.name = "Subzone name is required";
-    }
-    if (!formData.zoneId) {
-      newErrors.zoneId = "Zone is required";
-    }
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    console.log("Submitting subzone data:", formData);
-    console.log("Available zones:", zonesAll);
-
+  const handleSubmit = (values: SubzoneFormValues) => {
     if (showEditForm && selectedSubzone) {
       updateSubzoneMutation.mutate({
         id: selectedSubzone.id,
-        data: formData,
+        data: values,
       });
     } else {
-      createSubzoneMutation.mutate(formData);
+      createSubzoneMutation.mutate(values);
     }
   };
 
   // Handle edit
   const handleEdit = (subzone: Subzone) => {
     setSelectedSubzone(subzone);
-    setFormData({
-      name: subzone.name,
-      description: subzone.description || "",
-      zoneId: subzone.zoneId,
-    });
-    setErrors({});
     setShowEditForm(true);
   };
 
@@ -209,7 +167,6 @@ export default function SubzonesPage() {
     setShowEditForm(false);
     setShowDeleteConfirm(false);
     setSelectedSubzone(null);
-    resetForm();
   };
 
   // Reset to first page when search/status changes
@@ -474,52 +431,14 @@ export default function SubzonesPage() {
             createSubzoneMutation.isPending || updateSubzoneMutation.isPending,
         }}
       >
-        <form id="subzone-form" onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input
-              label="Subzone Name"
-              required
-              type="text"
-              value={formData.name}
-              onChange={(e) => {
-                setFormData({ ...formData, name: e.target.value });
-                if (errors.name)
-                  setErrors((prev) => ({ ...prev, name: undefined }));
-              }}
-              placeholder="Enter subzone name"
-              error={errors.name}
-            />
-
-            <Select
-              label="Zone"
-              options={zonesAll.map((zone) => ({
-                value: zone.id,
-                label: zone.name,
-              }))}
-              value={formData.zoneId}
-              onChange={(value) => {
-                setFormData({ ...formData, zoneId: value });
-                if (errors.zoneId)
-                  setErrors((prev) => ({ ...prev, zoneId: undefined }));
-              }}
-              placeholder="Select a zone"
-              error={errors.zoneId}
-              required
-            />
-          </div>
-          <Textarea
-            label="Description"
-            value={formData.description}
-            onChange={(e) => {
-              setFormData({ ...formData, description: e.target.value });
-              if (errors.description)
-                setErrors((prev) => ({ ...prev, description: undefined }));
-            }}
-            placeholder="Optional description"
-            error={errors.description}
-            rows={3}
-          />
-        </form>
+        <SubzoneForm
+          initial={selectedSubzone || undefined}
+          onSubmit={handleSubmit}
+          zones={zonesAll}
+          submitting={
+            createSubzoneMutation.isPending || updateSubzoneMutation.isPending
+          }
+        />
 
         {/* Buttons moved to Modal footer */}
       </Modal>
@@ -547,5 +466,93 @@ export default function SubzonesPage() {
         isLoading={confirmingDelete || deleteSubzoneMutation.isPending}
       />
     </div>
+  );
+}
+function SubzoneForm({
+  initial,
+  onSubmit,
+  zones,
+  submitting,
+}: {
+  initial?: Subzone;
+  onSubmit: (values: SubzoneFormValues) => void;
+  zones: any[];
+  submitting?: boolean;
+}) {
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<SubzoneFormValues>({
+    resolver: zodResolver(subzoneSchema),
+    defaultValues: {
+      name: initial?.name || "",
+      description: initial?.description || "",
+      zoneId: initial?.zoneId || "",
+    },
+  });
+
+  const zoneId = watch("zoneId");
+
+  // Reset form when initial prop changes
+  useEffect(() => {
+    if (initial) {
+      reset({
+        name: initial.name || "",
+        description: initial.description || "",
+        zoneId: initial.zoneId || "",
+      });
+    } else {
+      reset({
+        name: "",
+        description: "",
+        zoneId: "",
+      });
+    }
+  }, [initial, reset]);
+
+  return (
+    <form
+      id="subzone-form"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-6"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Input
+          label="Subzone Name"
+          required
+          type="text"
+          {...register("name")}
+          placeholder="Enter subzone name"
+          error={errors.name?.message}
+          disabled={submitting}
+        />
+
+        <Select
+          label="Zone"
+          options={zones.map((zone) => ({
+            value: zone.id,
+            label: zone.name,
+          }))}
+          value={zoneId}
+          onChange={(value) => setValue("zoneId", value)}
+          placeholder="Select a zone"
+          error={errors.zoneId?.message}
+          required
+          disabled={submitting}
+        />
+      </div>
+      <Textarea
+        label="Description"
+        {...register("description")}
+        placeholder="Optional description"
+        error={errors.description?.message}
+        rows={3}
+        disabled={submitting}
+      />
+    </form>
   );
 }

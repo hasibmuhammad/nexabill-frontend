@@ -1,100 +1,156 @@
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import Cookies from "js-cookie";
 
+// Constants for cookie keys
+const ACCESS_TOKEN_KEY = "auth-token";
+const REFRESH_TOKEN_KEY = "refresh-token";
+
+interface PendingRequest {
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+}
+
+let isRefreshing = false;
+let failedQueue: PendingRequest[] = [];
+
+const processQueue = (error: Error | null, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+/**
+ * Shared helper to configure interceptors for an axios instance
+ */
+const setupInterceptors = (instance: AxiosInstance) => {
+  // Request interceptor: Attach Access Token
+  instance.interceptors.request.use(
+    (config: InternalAxiosRequestConfig) => {
+      const token = Cookies.get(ACCESS_TOKEN_KEY);
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
+
+  // Response interceptor: Handle 401 and Token Refresh
+  instance.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError) => {
+      const originalRequest = error.config as any;
+
+      // If error is 401 and we haven't retried yet
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        if (isRefreshing) {
+          // Add to queue and wait for the refresh to complete
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then((token) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              return instance(originalRequest);
+            })
+            .catch((err) => Promise.reject(err));
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        const refreshToken = Cookies.get(REFRESH_TOKEN_KEY);
+
+        if (!refreshToken) {
+          isRefreshing = false;
+          handleLogout();
+          return Promise.reject(error);
+        }
+
+        try {
+          // Attempt to refresh the token
+          // Note: We use a fresh axios instance here to avoid recursive interceptors
+          const response = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1"}/auth/refresh`,
+            {},
+            {
+              headers: { Authorization: `Bearer ${refreshToken}` },
+            }
+          );
+
+          const { access_token, refresh_token } = response.data.data || response.data;
+
+          // Update cookies
+          Cookies.set(ACCESS_TOKEN_KEY, access_token, { expires: 1 }); // 1 day for access (redundant as it's auto-rotated)
+          Cookies.set(REFRESH_TOKEN_KEY, refresh_token, { expires: 7 }); // 7 days for refresh
+
+          isRefreshing = false;
+          processQueue(null, access_token);
+
+          // Retry the original request
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          return instance(originalRequest);
+        } catch (refreshError) {
+          isRefreshing = false;
+          processQueue(refreshError as Error, null);
+          handleLogout();
+          return Promise.reject(refreshError);
+        }
+      }
+
+      return Promise.reject(error);
+    }
+  );
+};
+
+const handleLogout = () => {
+  Cookies.remove(ACCESS_TOKEN_KEY);
+  Cookies.remove(REFRESH_TOKEN_KEY);
+  if (typeof window !== "undefined") {
+    window.location.href = "/auth/login";
+  }
+};
+
+// --- API Instances ---
+
+// Standard API instance
 export const api: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1",
-  timeout: 15000, // 15 seconds - reasonable for most operations
+  timeout: 15000,
 });
+setupInterceptors(api);
 
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
-  const token = Cookies.get("auth-token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      Cookies.remove("auth-token");
-      window.location.href = "/auth/login";
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Create a specific API instance for Mikrotik operations with extended timeout
+// Mikrotik API instance (Extended Timeout)
 export const mikrotikApi: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1",
-  timeout: 60000, // 60 seconds - extended for Mikrotik operations that may take longer
+  timeout: 60000,
 });
+setupInterceptors(mikrotikApi);
 
-// Add auth token to Mikrotik API requests
-mikrotikApi.interceptors.request.use((config) => {
-  const token = Cookies.get("auth-token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Response interceptor for Mikrotik API
-mikrotikApi.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      Cookies.remove("auth-token");
-      window.location.href = "/auth/login";
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Create a specific API instance for real-time status with extended timeout
+// Real-time API instance
 export const realTimeApi: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1",
-  timeout: 45000, // 45 seconds for real-time status (multiple server connections)
+  timeout: 45000,
 });
+setupInterceptors(realTimeApi);
 
-// Add auth token to real-time API requests
-realTimeApi.interceptors.request.use((config) => {
-  const token = Cookies.get("auth-token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// Explicit Export for legacy support if needed
+export default api;
 
-// Response interceptor for real-time API
-realTimeApi.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      Cookies.remove("auth-token");
-      window.location.href = "/auth/login";
-    }
-    return Promise.reject(error);
-  }
-);
+// --- Specialized Fetchers ---
 
-// Get real-time connection status from all Mikrotik servers
 export const getRealTimeConnectionStatus = async () => {
   const response = await realTimeApi.get("/dashboard/real-time-status");
-  // The API returns data nested under response.data.data
   return response.data.data || response.data;
 };
 
-// Get all Mikrotik servers for filter dropdown
 export const getMikrotikServers = async () => {
   const response = await api.get("/mikrotik", {
-    params: {
-      page: 1,
-      limit: 100, // Get all servers for filter dropdown
-    },
+    params: { page: 1, limit: 100 },
   });
   return response.data?.data || [];
 };

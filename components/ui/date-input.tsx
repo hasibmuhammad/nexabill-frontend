@@ -19,6 +19,7 @@ export interface DateInputProps {
   label?: string;
   required?: boolean;
   placement?: "top" | "bottom";
+  error?: string;
 }
 
 function isWithinBounds(day: Moment, min?: string, max?: string): boolean {
@@ -43,6 +44,7 @@ export const DateInput: React.FC<DateInputProps> = ({
   label,
   required,
   placement = "bottom",
+  error,
 }) => {
   const initialDate =
     value && moment(value, "YYYY-MM-DD", true).isValid()
@@ -123,6 +125,7 @@ export const DateInput: React.FC<DateInputProps> = ({
             disabled={disabled}
             inputMode="numeric"
             className={`${inputClassName || ""} pr-10`}
+            error={error}
           />
           <button
             type="button"

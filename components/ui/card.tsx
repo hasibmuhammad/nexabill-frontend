@@ -80,3 +80,21 @@ export const CardFooter = forwardRef<
 ));
 
 CardFooter.displayName = "CardFooter";
+
+export const CardTitle = forwardRef<
+  HTMLHeadingElement,
+  HTMLAttributes<HTMLHeadingElement>
+>(({ className, children, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={clsx(
+      "text-lg font-semibold leading-none tracking-tight text-slate-900 dark:text-slate-100",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </h3>
+));
+
+CardTitle.displayName = "CardTitle";

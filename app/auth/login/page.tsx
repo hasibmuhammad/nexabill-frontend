@@ -6,26 +6,33 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/lib/auth-context";
+import { loginSchema, type LoginFormValues } from "@/lib/schemas/auth";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 
-interface LoginForm {
-  email: string;
-  password: string;
-}
-
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [demoCredentials, setDemoCredentials] = useState<LoginFormValues | null>(
+    null
+  );
   const router = useRouter();
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const {
+    login,
+    isAuthenticated,
+    isLoading: authLoading,
+  } = useAuth();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginForm>();
+    setValue,
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+  });
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -33,6 +40,14 @@ export default function LoginPage() {
       router.push("/dashboard");
     }
   }, [authLoading, isAuthenticated, router]);
+
+  // Auto-fill form when demo credentials are selected
+  useEffect(() => {
+    if (demoCredentials) {
+      setValue("email", demoCredentials.email);
+      setValue("password", demoCredentials.password);
+    }
+  }, [demoCredentials, setValue]);
 
   // Show loading while checking auth or if authenticated
   if (authLoading || isAuthenticated) {
@@ -43,12 +58,24 @@ export default function LoginPage() {
     );
   }
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      await login(data.email, data.password);
+      const userData = await login(data.email, data.password);
       toast.success("Login successful!");
-      router.push("/dashboard");
+
+      // Debug: Log the user data to see what role we're getting
+      console.log("Login successful, user data:", userData);
+      console.log("User role:", userData.role);
+
+      // Redirect based on user role using the returned user data
+      if (userData.role === "SUPER_ADMIN") {
+        console.log("Redirecting to super-admin");
+        router.push("/super-admin");
+      } else {
+        console.log("Redirecting to dashboard");
+        router.push("/dashboard");
+      }
     } catch (error: any) {
       toast.error(error.message || "Login failed");
     } finally {
@@ -117,13 +144,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="Enter your email"
                   className="w-full"
-                  {...register("email", {
-                    required: "Email is required",
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "Invalid email address",
-                    },
-                  })}
+                  {...register("email")}
                   error={errors.email?.message}
                 />
               </div>
@@ -139,13 +160,7 @@ export default function LoginPage() {
                   id="password"
                   placeholder="Enter your password"
                   className="w-full"
-                  {...register("password", {
-                    required: "Password is required",
-                    minLength: {
-                      value: 6,
-                      message: "Password must be at least 6 characters",
-                    },
-                  })}
+                  {...register("password")}
                   error={errors.password?.message}
                 />
               </div>
@@ -169,25 +184,43 @@ export default function LoginPage() {
             {/* Demo Credentials */}
             <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-600">
               <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-3">
-                Demo Accounts
+                Demo Accounts (Click to auto-fill)
               </p>
               <div className="space-y-2 text-xs">
-                <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDemoCredentials({
+                      email: "admin@ispbilling.com",
+                      password: "admin123",
+                    });
+                  }}
+                  className="w-full bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+                >
                   <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Super Admin
                   </p>
                   <p className="text-slate-600 dark:text-slate-400">
-                    admin@ispbilling.com / admin123456
+                    admin@ispbilling.com / admin123
                   </p>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDemoCredentials({
+                      email: "demo@organization.com",
+                      password: "demo123",
+                    });
+                  }}
+                  className="w-full bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
+                >
                   <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Reseller
+                    Demo Organization
                   </p>
                   <p className="text-slate-600 dark:text-slate-400">
-                    reseller@ispbilling.com / reseller123
+                    demo@organization.com / demo123
                   </p>
-                </div>
+                </button>
               </div>
             </div>
           </Card>

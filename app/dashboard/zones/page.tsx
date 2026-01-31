@@ -11,21 +11,23 @@ import { PageLoader } from "@/components/ui/page-loader";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
-  createZone,
-  deleteZone,
-  getZones,
-  toggleZoneStatus,
-  updateZone,
-  type CreateZoneDto,
-  type UpdateZoneDto,
-  type Zone,
+    createZone,
+    deleteZone,
+    getZones,
+    toggleZoneStatus,
+    updateZone,
+    type UpdateZoneDto,
+    type Zone
 } from "@/lib/api-zones";
+import { zoneSchema, type ZoneFormValues } from "@/lib/schemas/zone";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calendar, Edit, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { ZonesFilters } from "./components/ZonesFilters";
-
+ 
 export default function ZonesPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -37,20 +39,7 @@ export default function ZonesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-
   const queryClient = useQueryClient();
-
-  // Form state
-  const [formData, setFormData] = useState<CreateZoneDto>({
-    name: "",
-    code: "",
-    description: "",
-  });
-  const [errors, setErrors] = useState<{
-    name?: string;
-    code?: string;
-    description?: string;
-  }>({});
 
   // Fetch zones once (high limit), filter and paginate client-side
   const {
@@ -74,7 +63,6 @@ export default function ZonesPage() {
     onSuccess: () => {
       toast.success("Zone created successfully!");
       setShowAddForm(false);
-      resetForm();
       queryClient.invalidateQueries({ queryKey: ["zones"] });
     },
     onError: (error: any) => {
@@ -89,7 +77,6 @@ export default function ZonesPage() {
       toast.success("Zone updated successfully!");
       setShowEditForm(false);
       setSelectedZone(null);
-      resetForm();
       queryClient.invalidateQueries({ queryKey: ["zones"] });
     },
     onError: (error: any) => {
@@ -123,50 +110,23 @@ export default function ZonesPage() {
     },
   });
 
-  // Reset form
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      code: "",
-      description: "",
-    });
-    setErrors({});
-  };
+  // No-op
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: typeof errors = {};
-    if (!formData.name || !formData.name.trim()) {
-      newErrors.name = "Zone name is required";
-    }
-    if (formData.code && formData.code.length > 32) {
-      newErrors.code = "Code must be 32 characters or less";
-    }
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
+  const handleSubmit = (values: ZoneFormValues) => {
     if (showEditForm && selectedZone) {
       updateZoneMutation.mutate({
         id: selectedZone.id,
-        data: formData,
+        data: values,
       });
     } else {
-      createZoneMutation.mutate(formData);
+      createZoneMutation.mutate(values);
     }
   };
 
   // Handle edit
   const handleEdit = (zone: Zone) => {
     setSelectedZone(zone);
-    setFormData({
-      name: zone.name,
-      code: zone.code || "",
-      description: zone.description || "",
-    });
-    setErrors({});
     setShowEditForm(true);
   };
 
@@ -187,7 +147,6 @@ export default function ZonesPage() {
     setShowEditForm(false);
     setShowDeleteConfirm(false);
     setSelectedZone(null);
-    resetForm();
   };
 
   // Reset to first page when search/status changes
@@ -443,48 +402,13 @@ export default function ZonesPage() {
             createZoneMutation.isPending || updateZoneMutation.isPending,
         }}
       >
-        <form id="zone-form" onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input
-              label="Zone Name"
-              required
-              type="text"
-              value={formData.name}
-              onChange={(e) => {
-                setFormData({ ...formData, name: e.target.value });
-                if (errors.name)
-                  setErrors((prev) => ({ ...prev, name: undefined }));
-              }}
-              placeholder="Enter zone name"
-              error={errors.name}
-            />
-            <Input
-              label="Zone Code"
-              type="text"
-              value={formData.code}
-              onChange={(e) => {
-                setFormData({ ...formData, code: e.target.value });
-                if (errors.code)
-                  setErrors((prev) => ({ ...prev, code: undefined }));
-              }}
-              placeholder="Enter zone code (optional)"
-              error={errors.code}
-            />
-          </div>
-
-          <Textarea
-            label="Description"
-            value={formData.description}
-            onChange={(e) => {
-              setFormData({ ...formData, description: e.target.value });
-              if (errors.description)
-                setErrors((prev) => ({ ...prev, description: undefined }));
-            }}
-            placeholder="Optional description"
-            error={errors.description}
-            rows={3}
-          />
-        </form>
+        <ZoneForm
+          initial={selectedZone || undefined}
+          onSubmit={handleSubmit}
+          submitting={
+            createZoneMutation.isPending || updateZoneMutation.isPending
+          }
+        />
 
         {/* Buttons moved to Modal footer */}
       </Modal>
@@ -512,5 +436,82 @@ export default function ZonesPage() {
         isLoading={confirmingDelete || deleteZoneMutation.isPending}
       />
     </div>
+  );
+}
+function ZoneForm({
+  initial,
+  onSubmit,
+  submitting,
+}: {
+  initial?: Zone;
+  onSubmit: (values: ZoneFormValues) => void;
+  submitting?: boolean;
+}) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ZoneFormValues>({
+    resolver: zodResolver(zoneSchema),
+    defaultValues: {
+      name: initial?.name || "",
+      code: initial?.code || "",
+      description: initial?.description || "",
+    },
+  });
+
+  // Reset form when initial prop changes
+  useEffect(() => {
+    if (initial) {
+      reset({
+        name: initial.name || "",
+        code: initial.code || "",
+        description: initial.description || "",
+      });
+    } else {
+      reset({
+        name: "",
+        code: "",
+        description: "",
+      });
+    }
+  }, [initial, reset]);
+
+  return (
+    <form
+      id="zone-form"
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-6"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Input
+          label="Zone Name"
+          required
+          type="text"
+          {...register("name")}
+          placeholder="Enter zone name"
+          error={errors.name?.message}
+          disabled={submitting}
+        />
+        <Input
+          label="Zone Code"
+          type="text"
+          {...register("code")}
+          placeholder="Enter zone code (optional)"
+          error={errors.code?.message}
+          disabled={submitting}
+        />
+      </div>
+
+      <Textarea
+        label="Description"
+        {...register("description")}
+        placeholder="Optional description"
+        error={errors.description?.message}
+        rows={3}
+        disabled={submitting}
+      />
+    </form>
   );
 }

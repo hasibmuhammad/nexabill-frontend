@@ -22,10 +22,11 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
+  getRedirectPath: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,8 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = Cookies.get("auth-token");
     if (token) {
-      // Set the authorization header for existing token
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       loadUser();
     } else {
       setIsLoading(false);
@@ -54,32 +53,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data?.data || response.data);
     } catch (error) {
       console.error("Failed to load user:", error);
-      Cookies.remove("auth-token");
+      // We don't remove cookies here because the interceptor 
+      // will handle actual 401s and attempt refresh
     } finally {
       setIsLoading(false);
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     try {
       const response = await api.post("/auth/login", { email, password });
       const loginData = response.data?.data || response.data;
-      const { access_token, user: userData } = loginData;
+      const { access_token, refresh_token, user: userData } = loginData;
 
-      Cookies.set("auth-token", access_token, { expires: 7 });
+      // Store both tokens
+      Cookies.set("auth-token", access_token, { expires: 1 });
+      Cookies.set("refresh-token", refresh_token, { expires: 7 });
+      
       setUser(userData);
 
-      // Set default authorization header for future requests
-      api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+      return userData;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || "Login failed");
     }
   };
 
+  const getRedirectPath = () => {
+    if (!user) return "/auth/login";
+
+    switch (user.role) {
+      case "SUPER_ADMIN":
+        return "/admin";
+      case "ORGANIZATION":
+      case "ADMIN":
+        return "/dashboard";
+      default:
+        return "/dashboard";
+    }
+  };
+
   const logout = () => {
     Cookies.remove("auth-token");
+    Cookies.remove("refresh-token");
     setUser(null);
-    delete api.defaults.headers.common["Authorization"];
     router.push("/auth/login");
   };
 
@@ -91,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         isLoading,
         isAuthenticated,
+        getRedirectPath,
       }}
     >
       {children}

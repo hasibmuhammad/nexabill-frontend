@@ -1,6 +1,6 @@
 "use client";
 
-import ClientTabbedModal from "@/components/modals/ClientTabbedModal";
+import ClientTabbedModal from "@/components/modals/Client/ClientTabbedModal";
 import { Button } from "@/components/ui/button";
 import { ColumnDef, DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/ui/page-header";
