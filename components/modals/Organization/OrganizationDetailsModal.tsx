@@ -3,47 +3,22 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TabbedModal } from "@/components/ui/tabbed-modal";
-import { organizationsApi } from "@/lib/api-organizations";
+import { organizationsApi, type Organization } from "@/lib/api-organizations";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart3,
-  Building2,
-  Calendar,
-  Globe,
-  Mail,
-  MapPin,
-  Package,
-  Phone,
-  Server,
-  Settings,
-  UserCheck,
-  Users,
+    BarChart3,
+    Building2,
+    Calendar,
+    Globe,
+    Mail,
+    MapPin,
+    Package,
+    Phone,
+    Server,
+    Settings,
+    UserCheck,
+    Users,
 } from "lucide-react";
-
-interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-  domain?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  logo?: string;
-  plan: string;
-  status: string;
-  trialEndsAt?: string;
-  subscriptionEndsAt?: string;
-  settings?: any;
-  features?: any;
-  createdAt: string;
-  updatedAt: string;
-  _count: {
-    users: number;
-    clients: number;
-    serviceProfiles: number;
-    mikrotikServers: number;
-  };
-}
 
 interface OrganizationDetailsModalProps {
   isOpen: boolean;
@@ -103,7 +78,10 @@ export function OrganizationDetailsModal({
     );
   };
 
-  const getPlanBadge = (plan: string) => {
+  const getPlanBadge = (plan: any) => {
+    const planName = typeof plan === 'object' ? (plan?.name || "UNKNOWN") : plan;
+    const planKey = planName.toUpperCase();
+
     const variants = {
       TRIAL: "outline",
       BASIC: "secondary",
@@ -112,8 +90,8 @@ export function OrganizationDetailsModal({
     } as const;
 
     return (
-      <Badge variant={variants[plan as keyof typeof variants] || "secondary"}>
-        {plan}
+      <Badge variant={variants[planKey as keyof typeof variants] || "secondary"}>
+        {planName}
       </Badge>
     );
   };

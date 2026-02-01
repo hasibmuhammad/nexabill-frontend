@@ -16,15 +16,15 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { organizationsApi, type Organization } from "@/lib/api-organizations";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Building2,
-  Edit,
-  Eye,
-  MoreHorizontal,
-  Plus,
-  Search,
-  ToggleLeft,
-  ToggleRight,
-  Trash2,
+    Building2,
+    Edit,
+    Eye,
+    MoreHorizontal,
+    Plus,
+    Search,
+    ToggleLeft,
+    ToggleRight,
+    Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -177,7 +177,10 @@ export default function OrganizationsPage() {
     );
   };
 
-  const getPlanBadge = (plan: string) => {
+  const getPlanBadge = (plan: any) => {
+    const planName = typeof plan === 'object' ? (plan?.name || "UNKNOWN") : plan;
+    const planKey = planName.toUpperCase();
+
     const variants = {
       TRIAL: "outline",
       BASIC: "secondary",
@@ -186,8 +189,8 @@ export default function OrganizationsPage() {
     } as const;
 
     return (
-      <Badge variant={variants[plan as keyof typeof variants] || "secondary"}>
-        {plan}
+      <Badge variant={variants[planKey as keyof typeof variants] || "secondary"}>
+        {planName}
       </Badge>
     );
   };

@@ -4,37 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { type Organization } from "@/lib/api-organizations";
+import { subscriptionPlansApi } from "@/lib/api-subscription-plans";
 import { uploadApi } from "@/lib/api-upload";
 import { organizationSchema, type OrganizationFormValues } from "@/lib/schemas/organization";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
-
-interface Organization {
-  id?: string;
-  name: string;
-  slug: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  logo?: string;
-  plan: string;
-  status: string;
-  trialEndsAt?: string;
-  subscriptionEndsAt?: string;
-  settings?: any;
-  features?: any;
-  licenseNumber?: string;
-  binNumber?: string;
-  tinNumber?: string;
-  ispCategory?: string;
-  username?: string;
-  password?: string;
-}
 
 interface OrganizationFormProps {
   organization?: Organization;
@@ -53,6 +35,14 @@ export function OrganizationForm({
   submitText = "Create Organization",
   cancelText = "Cancel",
 }: OrganizationFormProps) {
+  // Fetch available subscription plans
+  const { data: plansResponse, isLoading: plansLoading } = useQuery({
+    queryKey: ["subscription-plans"],
+    queryFn: () => subscriptionPlansApi.getAll({ isActive: true }),
+  });
+
+  const plans = plansResponse?.data || [];
+
   const {
     register,
     handleSubmit,
@@ -76,7 +66,6 @@ export function OrganizationForm({
       subscriptionEndsAt: "",
       settings: {
         maxClients: "" as any,
-        maxUsers: "" as any,
         maxMikrotikServers: "" as any,
       },
       features: {
@@ -115,6 +104,17 @@ export function OrganizationForm({
     }
   }, [name, setValue, dirtyFields.slug]);
 
+  // Auto-populate limits from selected plan
+  useEffect(() => {
+    if (plan && plans.length > 0) {
+      const selectedPlan = plans.find((p: any) => p.id === plan);
+      if (selectedPlan) {
+        setValue("settings.maxClients", selectedPlan.maxClients, { shouldValidate: true });
+        setValue("settings.maxMikrotikServers", selectedPlan.maxMikrotikServers, { shouldValidate: true });
+      }
+    }
+  }, [plan, plans, setValue]);
+
   // Initialize form data when organization prop changes
   useEffect(() => {
     if (organization) {
@@ -125,7 +125,7 @@ export function OrganizationForm({
         phone: organization.phone || "",
         address: organization.address || "",
         logo: organization.logo || "",
-        plan: (organization.plan as any) || "",
+        plan: (typeof organization.plan === "object" ? organization.plan.id : (organization as any).planId || organization.plan) || "",
         status: (organization.status as any) || "",
         trialEndsAt: organization.trialEndsAt
           ? new Date(organization.trialEndsAt).toISOString().slice(0, 10)
@@ -135,7 +135,6 @@ export function OrganizationForm({
           : "",
         settings: organization.settings || {
           maxClients: "" as any,
-          maxUsers: "" as any,
           maxMikrotikServers: "" as any,
         },
         features: organization.features || {
@@ -155,18 +154,18 @@ export function OrganizationForm({
   }, [organization, reset]);
 
   const onFormSubmit = (data: OrganizationFormValues) => {
+    const { plan, ...rest } = data;
     const payload = {
-      ...data,
-      email: data.email || '',
-      phone: data.phone || '',
-      address: data.address || '',
-      trialEndsAt: data.trialEndsAt
-        ? new Date(data.trialEndsAt).toISOString()
-        : '',
+      ...rest,
+      email: data.email || "",
+      phone: data.phone || "",
+      address: data.address || "",
+      trialEndsAt: data.trialEndsAt ? new Date(data.trialEndsAt).toISOString() : null,
       subscriptionEndsAt: data.subscriptionEndsAt
         ? new Date(data.subscriptionEndsAt).toISOString()
-        : '',
-      logo: data.logo || '',
+        : null,
+      logo: data.logo || "",
+      planId: plan,
     };
     onSubmit(payload);
   };
@@ -216,14 +215,16 @@ export function OrganizationForm({
                     placeholder="Enter system username"
                     error={errors.username?.message}
                   />
-                  <Input
-                    label="Password"
-                    required
-                    type="password"
-                    {...register("password")}
-                    placeholder="Enter system password"
-                    error={errors.password?.message}
-                  />
+                   <div>
+                      <PasswordInput
+                        id="password"
+                        placeholder="Enter your password"
+                        className="w-full"
+                        {...register("password")}
+                        error={errors.password?.message}
+                        label="Password"
+                      />
+                    </div>
                 </>
               )}
             </div>
@@ -336,15 +337,11 @@ export function OrganizationForm({
                 required
                 value={plan}
                 onChange={(value) => setValue("plan", value as any)}
-                options={[
-                  { value: "TRIAL", label: "Trial" },
-                  { value: "BASIC", label: "Basic" },
-                  { value: "PREMIUM", label: "Premium" },
-                  { value: "ENTERPRISE", label: "Enterprise" },
-                ]}
-                placeholder="Select plan"
+                options={plans.map((p: any) => ({ value: p.id, label: p.name }))}
+                placeholder={plansLoading ? "Loading plans..." : "Select plan"}
                 showSearch={false}
                 error={errors.plan?.message}
+                disabled={plansLoading}
               />
               <Select
                 label="Status"
@@ -424,9 +421,6 @@ export function OrganizationForm({
                   { value: "NATIONWIDE", label: "Nationwide" },
                   { value: "DIVISIONAL", label: "Divisional" },
                   { value: "ZONAL", label: "Zonal" },
-                  { value: "CATEGORY_A", label: "Category A" },
-                  { value: "CATEGORY_B", label: "Category B" },
-                  { value: "CATEGORY_C", label: "Category C" },
                 ]}
                 placeholder="Select ISP Category"
                 showSearch={false}
@@ -448,12 +442,6 @@ export function OrganizationForm({
                 type="number"
                 {...register("settings.maxClients")}
                 error={errors.settings?.maxClients?.message}
-              />
-              <Input
-                label="Max Users"
-                type="number"
-                {...register("settings.maxUsers")}
-                error={errors.settings?.maxUsers?.message}
               />
               <Input
                 label="Max Mikrotik Servers"

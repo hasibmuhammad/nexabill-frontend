@@ -128,12 +128,12 @@ export default function LoginPage() {
                   htmlFor="email"
                   className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
                 >
-                  Email
+                  Email or Username
                 </label>
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="Enter your email"
+                  type="text"
+                  placeholder="Enter your email or username"
                   className="w-full"
                   {...register("email")}
                   error={errors.email?.message}

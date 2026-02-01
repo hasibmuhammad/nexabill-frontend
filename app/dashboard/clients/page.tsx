@@ -361,34 +361,50 @@ export default function ClientsPage() {
   ) : undefined;
 
   // Calculate total online clients from real-time status
+  // Only count sessions for clients that exist in our database
   const totalOnlineClients = useMemo(() => {
-    return realTimeStatus?.totalActiveUsers || 0;
-  }, [realTimeStatus?.totalActiveUsers]);
+    if (!realTimeStatus?.individualSessions || !clients?.clients) return 0;
+    
+    // Get all mikrotik usernames from our database clients
+    const dbClientUsernames = new Set(
+      clients.clients.map((client: ISPClient) => client.mikrotikUsername)
+    );
+    
+    // Count only sessions that match our database clients
+    const onlineCount = realTimeStatus.individualSessions.filter(
+      (session: any) => dbClientUsernames.has(session.name)
+    ).length;
+    
+    return onlineCount;
+  }, [realTimeStatus?.individualSessions, clients?.clients]);
 
   // Calculate total offline clients from real-time status
   const totalOfflineClients = useMemo(() => {
     const totalClients = systemTotal || 0;
-    // Handle cases where online sessions exceed database clients
-    // This can happen due to multiple sessions per client or orphaned sessions
     const offlineCount = Math.max(0, totalClients - totalOnlineClients);
     return offlineCount;
   }, [systemTotal, totalOnlineClients]);
 
   // Check for data discrepancy between database and Mikrotik sessions
+  // This now checks if there are MORE sessions on Mikrotik than clients in database
   const hasDataDiscrepancy = useMemo(() => {
+    if (!realTimeStatus?.totalActiveUsers) return false;
     const totalClients = systemTotal || 0;
-    return totalOnlineClients > totalClients;
-  }, [systemTotal, totalOnlineClients]);
+    const totalMikrotikSessions = realTimeStatus.totalActiveUsers;
+    return totalMikrotikSessions > totalClients;
+  }, [systemTotal, realTimeStatus?.totalActiveUsers]);
 
   const discrepancyInfo = useMemo(() => {
-    if (!hasDataDiscrepancy) return null;
+    if (!hasDataDiscrepancy || !realTimeStatus?.totalActiveUsers) return null;
     const totalClients = systemTotal || 0;
-    const extraSessions = totalOnlineClients - totalClients;
+    const totalMikrotikSessions = realTimeStatus.totalActiveUsers;
+    const extraSessions = totalMikrotikSessions - totalClients;
     return {
       extraSessions,
-      message: `${extraSessions} more active sessions than database clients. This may indicate multiple sessions per client or orphaned sessions.`,
+      totalMikrotikSessions,
+      message: `${extraSessions} active sessions on Mikrotik routers are not in your database. Total Mikrotik sessions: ${totalMikrotikSessions}, Database clients: ${totalClients}. This may indicate orphaned sessions or clients not yet imported.`,
     };
-  }, [hasDataDiscrepancy, systemTotal, totalOnlineClients]);
+  }, [hasDataDiscrepancy, systemTotal, realTimeStatus?.totalActiveUsers]);
 
   if (isLoading || realTimeLoading) {
     return (

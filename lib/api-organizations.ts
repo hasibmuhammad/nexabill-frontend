@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { SubscriptionPlan } from "./schemas/plan";
 
 export interface Organization {
   id: string;
@@ -9,7 +10,7 @@ export interface Organization {
   phone?: string;
   address?: string;
   logo?: string;
-  plan: string;
+  plan: SubscriptionPlan;
   status: string;
   trialEndsAt?: string;
   subscriptionEndsAt?: string;
@@ -28,9 +29,8 @@ export interface Organization {
   binNumber?: string;
   tinNumber?: string;
   ispCategory?: string;
-  clientPrefix?: string;
-  currency?: string;
-  timezone?: string;
+  username?: string;
+  password?: string;
   createdAt: string;
   updatedAt: string;
   _count: {

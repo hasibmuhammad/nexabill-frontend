@@ -46,6 +46,22 @@ const setupInterceptors = (instance: AxiosInstance) => {
     async (error: AxiosError) => {
       const originalRequest = error.config as any;
 
+      // Handle Network Errors (e.g., CORS mismatch or Server Down)
+      // If we have tokens but the critical auth requests fail with a network error,
+      // it's likely a stale/domain-mismatched token that needs clearing.
+      if (!error.response) {
+        const isAuthRequest = originalRequest.url?.includes("/auth/profile") || 
+                            originalRequest.url?.includes("/auth/refresh");
+                            
+        if (isAuthRequest && (Cookies.get(ACCESS_TOKEN_KEY) || Cookies.get(REFRESH_TOKEN_KEY))) {
+          console.warn("Network Error on auth endpoint. Clearing session.");
+          clearAuthCookies();
+          // We don't force redirect here to allow the calling component (like AuthContext)
+          // to handle the UI state transition gracefully.
+        }
+        return Promise.reject(error);
+      }
+
       // If error is 401 and we haven't retried yet
       if (error.response?.status === 401 && !originalRequest._retry) {
         if (isRefreshing) {
@@ -107,11 +123,21 @@ const setupInterceptors = (instance: AxiosInstance) => {
   );
 };
 
-const handleLogout = () => {
+/**
+ * Centralized function to clear authentication session
+ */
+export const clearAuthCookies = () => {
   Cookies.remove(ACCESS_TOKEN_KEY);
   Cookies.remove(REFRESH_TOKEN_KEY);
+};
+
+export const handleLogout = () => {
+  clearAuthCookies();
   if (typeof window !== "undefined") {
-    window.location.href = "/auth/login";
+    // Check if we are already on the login page to avoid loops
+    if (!window.location.pathname.startsWith("/auth/login")) {
+      window.location.href = "/auth/login";
+    }
   }
 };
 

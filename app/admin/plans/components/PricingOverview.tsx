@@ -1,21 +1,10 @@
 "use client";
 
+import { type SubscriptionPlan } from "@/lib/schemas/plan";
 import { PricingCard } from "./PricingCard";
 
-interface Plan {
-  id: string;
-  name: string;
-  description: string;
-  maxClients: number;
-  price: number;
-  currency: string;
-  billingCycle: string;
-  features: string[];
-  isActive: boolean;
-}
-
 interface PricingOverviewProps {
-  plans: Plan[];
+  plans: SubscriptionPlan[];
 }
 
 export function PricingOverview({ plans }: PricingOverviewProps) {

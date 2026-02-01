@@ -1,6 +1,6 @@
 "use client";
 
-import { api } from "@/lib/api";
+import { api, clearAuthCookies } from "@/lib/api";
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import {
@@ -53,8 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data?.data || response.data);
     } catch (error) {
       console.error("Failed to load user:", error);
-      // We don't remove cookies here because the interceptor 
-      // will handle actual 401s and attempt refresh
+      // The interceptor handles clearing cookies for network errors on /auth/profile,
+      // but we explicitly call it here too as a fail-safe best practice.
+      clearAuthCookies();
+      setUser(null);
     } finally {
       setIsLoading(false);
     }

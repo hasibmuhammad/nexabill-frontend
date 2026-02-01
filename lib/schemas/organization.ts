@@ -10,13 +10,12 @@ export const organizationSchema = z.object({
     z.string().url("Logo must be a valid URL").optional().or(z.literal("")),
     z.any() // Fallback for File objects
   ]).optional(),
-  plan: z.enum(["TRIAL", "BASIC", "PREMIUM", "ENTERPRISE"]),
+  plan: z.string().min(1, "Subscription plan is required"),
   status: z.enum(["TRIAL", "ACTIVE", "INACTIVE", "SUSPENDED"]),
   trialEndsAt: z.string().optional().or(z.literal("")),
   subscriptionEndsAt: z.string().optional().or(z.literal("")),
   settings: z.object({
     maxClients: z.coerce.number().int().min(1),
-    maxUsers: z.coerce.number().int().min(1),
     maxMikrotikServers: z.coerce.number().int().min(1),
   }),
   features: z.object({

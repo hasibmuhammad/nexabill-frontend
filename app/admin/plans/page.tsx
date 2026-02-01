@@ -23,84 +23,15 @@ import { PlanFilters } from "./components/PlanFilters";
 import { PlanSearch } from "./components/PlanSearch";
 import { PricingOverview } from "./components/PricingOverview";
 
-interface Plan {
-  id: string;
-  name: string;
-  description: string;
-  maxClients: number;
-  price: number;
-  currency: string;
-  billingCycle: string;
-  features: string[];
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import { api } from "@/lib/api";
+import { type PlanFormValues, type SubscriptionPlan } from "@/lib/schemas/plan";
+import { PlanForm } from "./components/PlanForm";
 
-// Mock data for now - will be replaced with API calls
-const mockPlans: Plan[] = [
-  {
-    id: "1",
-    name: "Starter",
-    description: "Perfect for small ISPs getting started",
-    maxClients: 500,
-    price: 1000,
-    currency: "BDT",
-    billingCycle: "monthly",
-    features: [
-      "Up to 500 clients",
-      "Basic client management",
-      "Email support",
-      "Standard reports",
-    ],
-    isActive: true,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "2",
-    name: "Professional",
-    description: "Ideal for growing ISPs",
-    maxClients: 1000,
-    price: 2000,
-    currency: "BDT",
-    billingCycle: "monthly",
-    features: [
-      "Up to 1000 clients",
-      "Advanced client management",
-      "Priority support",
-      "Advanced reports",
-      "API access",
-    ],
-    isActive: true,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "3",
-    name: "Enterprise",
-    description: "For large ISPs with extensive needs",
-    maxClients: 2000,
-    price: 3000,
-    currency: "BDT",
-    billingCycle: "monthly",
-    features: [
-      "Up to 2000 clients",
-      "Full client management suite",
-      "24/7 phone support",
-      "Custom reports",
-      "Full API access",
-      "White-label options",
-    ],
-    isActive: true,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-  },
-];
+
 
 export default function PlansPage() {
   const queryClient = useQueryClient();
-  const dataTable = useDataTable<Plan>({
+  const dataTable = useDataTable<SubscriptionPlan>({
     initialPageSize: 10,
     initialPageIndex: 0,
     initialSearch: "",
@@ -108,9 +39,9 @@ export default function PlansPage() {
     initialSortOrder: "asc",
   });
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<Plan | null>(null);
+  const [editing, setEditing] = useState<SubscriptionPlan | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [planToDelete, setPlanToDelete] = useState<Plan | null>(null);
+  const [planToDelete, setPlanToDelete] = useState<SubscriptionPlan | null>(null);
   const [activeTab, setActiveTab] = useState<"plans" | "analytics">("plans");
   const [filters, setFilters] = useState({
     status: "",
@@ -138,81 +69,76 @@ export default function PlansPage() {
       dataTable.pageSize,
     ],
     queryFn: async () => {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      let filteredPlans = mockPlans;
-
-      // Apply search filter
-      if (debouncedSearch) {
-        filteredPlans = filteredPlans.filter(
-          (plan) =>
-            plan.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-            plan.description
-              .toLowerCase()
-              .includes(debouncedSearch.toLowerCase())
-        );
-      }
-
-      // Apply status filter
-      if (filters.status) {
-        const isActive = filters.status === "ACTIVE";
-        filteredPlans = filteredPlans.filter(
-          (plan) => plan.isActive === isActive
-        );
-      }
-
-      // Apply plan type filter
-      if (filters.plan) {
-        filteredPlans = filteredPlans.filter(
-          (plan) => plan.name === filters.plan
-        );
-      }
-
-      // Apply pagination
-      const start = dataTable.pageIndex * dataTable.pageSize;
-      const end = start + dataTable.pageSize;
-      const paginatedPlans = filteredPlans.slice(start, end);
-
-      return {
-        plans: paginatedPlans,
-        meta: {
-          total: filteredPlans.length,
-          totalPages: Math.ceil(filteredPlans.length / dataTable.pageSize),
-          currentPage: dataTable.pageIndex + 1,
+      const response = await api.get("/subscription-plans", {
+        params: {
+          page: dataTable.pageIndex + 1,
           limit: dataTable.pageSize,
+          search: debouncedSearch,
+          isActive: filters.status === "ACTIVE" ? "true" : filters.status === "INACTIVE" ? "false" : undefined,
         },
-      };
+      });
+      return response.data.data || response.data;
     },
-    enabled: !!debouncedSearch || dataTable.pageIndex >= 0,
   });
 
   const filtered = useMemo(() => {
-    if (!plansData?.plans) return [] as Plan[];
-    return plansData.plans;
-  }, [plansData?.plans]);
+    if (Array.isArray(plansData)) return plansData;
+    if (plansData?.data && Array.isArray(plansData.data)) return plansData.data;
+    if (plansData?.items && Array.isArray(plansData.items)) return plansData.items;
+    return [];
+  }, [plansData]);
 
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => {
-      // Simulate API call
-      return new Promise((resolve) => setTimeout(resolve, 1000));
-    },
+  const createMut = useMutation({
+    mutationFn: (values: PlanFormValues) => api.post("/subscription-plans", values),
     onSuccess: () => {
-      toast.success("Plan deleted");
+      toast.success("Plan created successfully");
+      setShowForm(false);
       queryClient.invalidateQueries({ queryKey: ["plans"] });
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.message || "Failed to delete plan";
-      toast.error(message);
+      toast.error(error?.response?.data?.message || "Failed to create plan");
     },
   });
 
-  const startEdit = (p: Plan) => {
+  const updateMut = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: PlanFormValues }) =>
+      api.patch(`/subscription-plans/${id}`, values),
+    onSuccess: () => {
+      toast.success("Plan updated successfully");
+      setShowForm(false);
+      setEditing(null);
+      queryClient.invalidateQueries({ queryKey: ["plans"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to update plan");
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/subscription-plans/${id}`),
+    onSuccess: () => {
+      toast.success("Plan deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["plans"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to delete plan");
+    },
+  });
+
+  const onFormSubmit = (values: PlanFormValues) => {
+    if (editing) {
+      updateMut.mutate({ id: editing.id, values });
+    } else {
+      createMut.mutate(values);
+    }
+  };
+
+  const startEdit = (p: SubscriptionPlan) => {
     setEditing(p);
     setShowForm(true);
   };
 
-  const handleDeleteClick = (p: Plan) => {
+  const handleDeleteClick = (p: SubscriptionPlan) => {
     setPlanToDelete(p);
     setShowDeleteConfirm(true);
   };
@@ -239,7 +165,7 @@ export default function PlansPage() {
   };
 
   // Define table columns
-  const columns: ColumnDef<Plan, any>[] = [
+  const columns: ColumnDef<SubscriptionPlan, any>[] = [
     {
       id: "index",
       header: "#",
@@ -289,11 +215,22 @@ export default function PlansPage() {
     {
       id: "price",
       header: "Price",
-      accessorKey: "price",
+      accessorKey: "basePrice",
       enableSorting: true,
       cell: ({ original: p }) => (
         <div className="text-xs text-slate-900 dark:text-white">
-          {p.currency} {p.price.toLocaleString()}/{p.billingCycle}
+          BDT {p.basePrice.toLocaleString()}/{p.billingCycle.toLowerCase()}
+        </div>
+      ),
+    },
+    {
+      id: "servers",
+      header: "Max Servers",
+      accessorKey: "maxMikrotikServers",
+      enableSorting: true,
+      cell: ({ original: p }) => (
+        <div className="text-xs text-slate-900 dark:text-white">
+          {p.maxMikrotikServers}
         </div>
       ),
     },
@@ -497,19 +434,22 @@ export default function PlansPage() {
                   setEditing(null);
                 },
                 onConfirm: () => {
-                  toast.success(editing ? "Plan updated" : "Plan created");
-                  setShowForm(false);
-                  setEditing(null);
+                  // The form handles its own submit via button type submit
+                  // But here we need to trigger it if the modal footer is used
+                  const form = document.getElementById("plan-form") as HTMLFormElement;
+                  if (form) form.requestSubmit();
                 },
                 confirmVariant: "primary",
-                isLoading: false,
+                isLoading: createMut.isPending || updateMut.isPending,
                 disabled: false,
               }}
             >
-              <div className="p-4">
-                <p className="text-slate-600 dark:text-slate-400">
-                  Plan form will be implemented here.
-                </p>
+              <div className="p-6">
+                <PlanForm 
+                  initialData={editing || undefined} 
+                  onSubmit={onFormSubmit} 
+                  formId="plan-form" 
+                />
               </div>
             </Modal>
 
@@ -529,7 +469,7 @@ export default function PlansPage() {
         )}
 
         {/* Pricing Overview */}
-        <PricingOverview plans={mockPlans} />
+        <PricingOverview plans={filtered as any} />
       </div>
     </div>
   );

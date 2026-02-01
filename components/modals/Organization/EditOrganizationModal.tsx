@@ -1,26 +1,10 @@
 "use client";
 
 import Modal from "@/components/ui/modal";
-import { organizationsApi } from "@/lib/api-organizations";
+import { organizationsApi, type Organization } from "@/lib/api-organizations";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { OrganizationForm } from "./OrganizationForm";
-
-interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  logo?: string;
-  plan: string;
-  status: string;
-  trialEndsAt?: string;
-  subscriptionEndsAt?: string;
-  settings?: any;
-  features?: any;
-}
 
 interface EditOrganizationModalProps {
   isOpen: boolean;
