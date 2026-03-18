@@ -154,8 +154,8 @@ export function OrganizationForm({
   }, [organization, reset]);
 
   const onFormSubmit = (data: OrganizationFormValues) => {
-    const { plan, ...rest } = data;
-    const payload = {
+    const { plan, password, username, ...rest } = data;
+    const payload: any = {
       ...rest,
       email: data.email || "",
       phone: data.phone || "",
@@ -167,6 +167,10 @@ export function OrganizationForm({
       logo: data.logo || "",
       planId: plan,
     };
+    
+    if (password) payload.password = password;
+    if (username) payload.username = username;
+    
     onSubmit(payload);
   };
 

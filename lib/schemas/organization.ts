@@ -29,8 +29,8 @@ export const organizationSchema = z.object({
   binNumber: z.string().optional().or(z.literal("")),
   tinNumber: z.string().optional().or(z.literal("")),
   ispCategory: z.string().optional().or(z.literal("")),
-  username: z.string().min(3, "Organization username is required"),
-  password: z.string().min(6, "Organization password is required"),
+  username: z.string().min(3, "Organization username is required").optional().or(z.literal("")),
+  password: z.string().min(6, "Organization password is required").optional().or(z.literal("")),
 });
 
 export type OrganizationFormValues = z.infer<typeof organizationSchema>;
